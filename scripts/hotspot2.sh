@@ -57,7 +57,7 @@ fi
 
 unstarch $INFILE \
     | $COUNTING_EXE $SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE $OVERLAPPING_OR_NOT "reportEachUnit" $CHROM_SIZES \
-    | bedops -n - 1 - $EXCLUDE_THESE_REGIONS \
+    | bedops -n 1 - $EXCLUDE_THESE_REGIONS \
     | $HOTSPOT_EXE $BACKGROUND_WINDOW_SIZE $PVAL_DISTN_SIZE \
     | starch - \
     > $OUTFILE
