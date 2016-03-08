@@ -8,15 +8,15 @@ if [[ $# -lt 2 ]] ; then
 fi
 
 bam=$1
-mappabilityFile=$2
+CUTCOUNTS=$2
 
 awk_cut="$(dirname $0)/cutfragments.awk"
+
 
 name=$(basename $bam .bam)
 outputdir="$(dirname $bam)"
 
 CUTS_BED=$outputdir/$name.cuts.sorted.bed.starch
-CUTCOUNTS=$outputdir/$name.cutcounts.sorted.bed.starch
 FRAGMENTS=$outputdir/$name.fragments.sorted.bed.starch
 
 if [[ -z "$TMPDIR" ]] ;then
@@ -35,8 +35,8 @@ if [[  ! -s "$CUTS_BED" || ! -s "$FRAGMENTS" ]]; then
 
   time bam2bed --do-not-sort < "$bam" \
     | awk -v "cutfile=$CUTSTMP" -v "fragmentfile=$FRAGMENTSTMP" -f "$awk_cut"
-  sort-bed --max-mem 1G "$FRAGMENTSTMP" | starch - > "$FRAGMENTS"
-  sort-bed --max-mem 1G "$CUTSTMP"      | starch - > "$CUTS_BED"
+  sort-bed --max-mem 16G "$FRAGMENTSTMP" | starch --gzip - > "$FRAGMENTS"
+  sort-bed --max-mem 16G "$CUTSTMP"      | starch --gzip - > "$CUTS_BED"
 
 fi
 
@@ -53,6 +53,6 @@ if [[ ! -s "$CUTCOUNTS" ]]; then
     | awk '{print $1"\t"$2"\t"$3"\tid-"NR"\t"$4}' \
     > "$COUNTFILETMP"
 
-  time starch "$COUNTFILETMP" > "$CUTCOUNTS"
+  time starch --gzip "$COUNTFILETMP" > "$CUTCOUNTS"
 
 fi

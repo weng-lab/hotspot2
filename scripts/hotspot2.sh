@@ -1,83 +1,132 @@
 #! /bin/bash
 
-# IMPORTANT NOTE:
-# REQUIRES BADSPOTS, UNMAPPABLE REGIONS, ETC.
-# TO BE MERGED INTO A SINGLE FILE
-# WHOSE PATH IS THEN ASSIGNED TO THE VARIABLE
-# "EXCLUDE_THESE_REGIONS".
-EXCLUDE_THESE_REGIONS=""
+usage(){
+  cat >&2 <<__EOF__
+Usage:  "$0" [options] in.bam out_spots.bed
 
-# ALSO, THE PATH TO A FILE OF CHROMOSOME NAMES AND SIZES
-# CAN BE ASSIGNED TO THE VARIABLE
-# "CHROM_SIZES".
-# IMPORTANT NOTE:
-# IF THIS IS DONE, AND chrM DOES NOT APPEAR IN "CHROM_SIZES",
-# THEN DATA FOR chrM WILL BE INTERPRETED AS ERRORS.
+Options:
+    -h                    Show this helpful help
+
+  Recommended options:
+    -e EXCLUDE_FILE       Exclude these regions from analysis
+
+  Optional options:
+    -n NEIGHBORHOOD_SIZE  Local neighborhood size (100)
+    -w WINDOW_SIZE        Background region size  (25000)
+    -p PVAL_FDR           Number of p-values to use for FDR (1000000)
+    -f FDR_THRESHOLD      The false-discovery rate to use for filtering (0.05)
+    -O                    Use non-overlapping windows (advanced option)
+
+    -s SEED               Set this to an integer for repeatable results
+    -c CHROM_SIZES_FILE   The total length of each chromosome
+
+    Both the exclude file and chromosome sizes file should be in bed or starch
+    format.
+
+    Neighborhood and window sizes are specified as the distance from the edge
+    to the center - i.e, a 100bp neighborhood size is a 201bp window.
+
+    Using non-overlapping windows is not recommended for most users.
+
+__EOF__
+    exit 2
+}
+
+
+#EXCLUDE_THESE_REGIONS="/home/rsandstrom/development/AWG/blacklist/wgEncodeHg19ConsensusSignalArtifactRegions.bed"
+EXCLUDE_THESE_REGIONS="/dev/null"
 CHROM_SIZES=""
+MAPPABLE_FILE=""
+SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE=100 # i.e., 201bp regions
+BACKGROUND_WINDOW_SIZE=50001 # i.e., +/-25kb around each position
+PVAL_DISTN_SIZE=1000000
+OVERLAPPING_OR_NOT="overlapping"
+FDR_THRESHOLD="0.05"
+SEED=""
+
+CUTCOUNT_EXE=$(dirname $0)/cutcounts.bash
+
+while getopts 'hc:e:m:n:p:s:w:O' opt ; do
+  case "$opt" in
+    h)
+      usage
+      ;;
+    c)
+      CHROM_SIZES=$OPTARG
+      ;;
+    e)
+      EXCLUDE_THESE_REGIONS=$OPTARG
+      ;;
+    n)
+      SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE=$OPTARG
+      ;;
+    O)
+      OVERLAPPING_OR_NOT="nonoverlapping"
+      ;;
+    p)
+      PVAL_DISTN_SIZE=$OPTARG
+      ;;
+    s)
+      SEED=$OPTARG
+      ;;
+    w)
+      BACKGROUND_WINDOW_SIZE=$(( 2 * OPTARG + 1 ))
+      ;;
+
+  esac
+done
+shift $((OPTIND-1))
 
 COUNTING_EXE=tallyCountsInSmallWindows
 HOTSPOT_EXE=hotspot2
 
 if [ "$1" == "" ] || [ "$2" == "" ]; then
-    echo -e "Usage:  "$0" infileCuts.starch outfileFromWhichHotspotsAreCalled.starch [localHalfWindowSize] [backgroundHalfWindowSize] [overlapping] [pvalDistnSize]"
-    echo -e "\twhere an optional 3rd argument, the local neighborhood on both sides of each bp, is in bp (default = 100 = 201bp window),"
-    echo -e "\tan optional 4th argument, the background region on both sides of each local site, is in bp (default = 25000 = 50001bp window),"
-    echo -e "\tan optional 5th argument, the word \"overlapping\" or (without hyphen) \"nonoverlapping\", specifies 1bp-sliding overlapping windows or not,"
-    echo -e "\tand an optional 5th argument specifies the number of P-values to use for FDR estimates (default = 1000000)."
-    exit
+  usage
 fi
 
-INFILE=$1
-OUTFILE=$2
+BAM=$1
+HOTSPOT_OUTFILE=$2
 
-if [ "$3" != "" ]; then
-    SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE=$3
-else
-    SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE=100 # i.e., 201bp regions
-fi
+outdir=$(dirname $HOTSPOT_OUTFILE)
 
-if [ "$4" != "" ]; then
-    BACKGROUND_WINDOW_SIZE=`echo $4 | awk '{print 2*$1 + 1}'`
-else
-    BACKGROUND_WINDOW_SIZE=50001 # i.e., +/-25kb around each position
-fi
+CUTCOUNTS="$outdir/$(basename $BAM .bam).cutcounts.starch"
+OUTFILE="$outdir/$(basename $BAM .bam).allcalls.starch"
 
-if [ "$5" != "" ]; then
-    OVERLAPPING_OR_NOT=$5
-else
-    OVERLAPPING_OR_NOT="overlapping"
-fi
+TMPDIR=${TMPDIR:-$(mktemp -d)}
 
-if [ "$6" != "" ]; then
-    PVAL_DISTN_SIZE=$4
-else
-    PVAL_DISTN_SIZE=1000000
-fi
+echo "Cutting..."
+bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS"
 
-
-unstarch $INFILE \
+echo "Running hotspot2..."
+unstarch "$CUTCOUNTS" \
     | $COUNTING_EXE $SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE $OVERLAPPING_OR_NOT "reportEachUnit" $CHROM_SIZES \
     | bedops -n 1 - $EXCLUDE_THESE_REGIONS \
-    | $HOTSPOT_EXE $BACKGROUND_WINDOW_SIZE $PVAL_DISTN_SIZE \
+    | $HOTSPOT_EXE $BACKGROUND_WINDOW_SIZE $PVAL_DISTN_SIZE $SEED \
     | starch --gzip - \
     > $OUTFILE
 
-# Sample code to create, e.g., FDR 5% hotspots.
-#
-# FDRthresh=0.05
-# HOTSPOT_OUTFILE=hotspots_fdr${FDRthresh}.bed5
-#
-# # P-values of 0 will exist, and we don't want to do log(0).
-# # Roughly 1e-308 is the smallest nonzero P usually seen,
-# # so we can cap everything at that, or use a different tiny value.
-# # The constant c below converts from natural logarithm to log10.
-#
-# unstarch $OUTFILE \
-#    | awk -v threshold=$FDRthresh '{if($6 <= threshold){print}}' \
-#    | bedops -m - \
-#    | bedmap --delim "\t" --echo --min - $OUTFILE \
-#    | awk 'BEGIN{OFS="\t";c=-0.4342944819}{if($4>1e-308){print $1, $2, $3, "id-"NR, c*log($4)}else{print $1,$2,$3,"id-"NR,"308"}' \
-#    | starch - \
-#    > $HOTSPOT_OUTFILE
+
+# P-values of 0 will exist, and we don't want to do log(0).
+# Roughly 1e-308 is the smallest nonzero P usually seen,
+# so we can cap everything at that, or use a different tiny value.
+# The constant c below converts from natural logarithm to log10.
+
+echo "Thresholding..."
+unstarch $OUTFILE \
+  | awk -v threshold=$FDR_THRESHOLD '{if($6 <= threshold){print}}' \
+  | bedops -m - \
+  | bedmap --delim "\t" --echo --min - $OUTFILE \
+  | awk 'BEGIN{OFS="\t";c=-0.4342944819}     \
+    {                                        \
+      if($4>1e-308) {                        \
+        print $1, $2, $3, "id-"NR, c*log($4) \
+      } else {                               \
+        print $1, $2, $3, "id-"NR, "308"     \
+      }                                      \
+    }' \
+   | starch - \
+   > $HOTSPOT_OUTFILE
+
+echo "Done!"
 
 exit
