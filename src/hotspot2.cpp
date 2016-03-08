@@ -1,7 +1,7 @@
 // To compile this code into an executable,
 // simply enter the command
 //
-// $ g++ -O3 hotspot2ERbeta.cpp -o hotspot2ERbeta
+// $ g++ -O3 hotspot2.cpp -o hotspot2
 //
 // or substitute any desired name for the executable for the last argument.
 // The argument -O3 (capital "oh") generates optimized code;
@@ -22,6 +22,7 @@
 #include <list>
 #include <ctime> // for seeding the random number generator
 #include <algorithm>
+#include "hotspot2_version.h" // for versioning
 
 using namespace std;
 
@@ -248,7 +249,6 @@ double PvalueManager::FDR(const double& pval)
 
 class SiteManager {
 public:
-  //  SiteManager(ofstream& ofs, const int& n) : m_outfile(ofs) { initialize(n); }
   SiteManager(const int& n) { initialize(n); }
   void addSite(const Site& s);
   void setPvalue(const double& pval);
@@ -261,7 +261,6 @@ private:
   int m_idxCurSiteNeedingPval;
   int m_idxInsertHere;
   int m_N;
-  //  ofstream& m_outfile;
 };
 
 void SiteManager::initialize(const int& n)
@@ -296,9 +295,9 @@ void SiteManager::getFDRvalsAndWriteAndFlush(PvalueManager& pvm)
   while (i < m_idxCurSiteNeedingPval)
     {
       m_sites[i].qval = pvm.FDR(m_sites[i].pval);
-      /* m_outfile */ cout << m_sites[i].chrom << '\t' << m_sites[i].endPos - 1 << '\t'
-		<< m_sites[i].endPos << '\t' << m_sites[i].ID << '\t' << m_sites[i].pval
-		<< '\t' << m_sites[i].qval << endl;
+      cout << m_sites[i].chrom << '\t' << m_sites[i].endPos - 1 << '\t'
+	   << m_sites[i].endPos << '\t' << m_sites[i].ID << '\t' << m_sites[i].pval
+	   << '\t' << m_sites[i].qval << endl;
       i++;
     }
   // Now move any remaining sites (unprocessed) to the beginning of the m_sites vector.
@@ -524,12 +523,20 @@ void BackgroundRegionManager::findCutoff()
 		}
 	    }
 	}
+
+
+/*
       // BUGBUG Make sure it's correct to have the following assignments here,
       // instead of in the block above (i.e. only when m_kcutoff changes).
       // So far, so good...?
       m_runningSum_count_duringPrevComputation = m_runningSum_count;
       m_runningSum_countSquared_duringPrevComputation = m_runningSum_countSquared;
       m_numPtsInNullRegion_duringPrevComputation = m_numPtsInNullRegion;
+*/
+
+
+
+
       return;
     }
 
@@ -672,7 +679,6 @@ void BackgroundRegionManager::computeStats(const int& this_k)
     {
       // All observations within this region were of count == 0.
       m_distn[0].pmf = m_distn[0].pval = 1.;
-      //m_distn[0].runningPMFsum = 1.;
       m_runningSum_count_duringPrevComputation = m_runningSum_count;
       m_runningSum_countSquared_duringPrevComputation = m_runningSum_countSquared;
       m_numPtsInNullRegion = m_distn[0].numOccs;
@@ -856,6 +862,10 @@ void BackgroundRegionManager::computeStats(const int& this_k)
 	}
       m_prev_k = this_k;
     }
+
+  m_runningSum_count_duringPrevComputation = m_runningSum_count;
+  m_runningSum_countSquared_duringPrevComputation = m_runningSum_countSquared;
+  m_numPtsInNullRegion_duringPrevComputation = m_numPtsInNullRegion;
 }
 
 // This method gets called at the end of a chromosome, at the end of a file,
@@ -1651,8 +1661,8 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
     }
 }
 
-bool parseAndProcessInput(/* ifstream& infile, ofstream& outfile, */ const int& windowSize, const int& pvalDistnSize);
-bool parseAndProcessInput(/* ifstream& infile, ofstream& outfile, */ const int& windowSize, const int& pvalDistnSize)
+bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize);
+bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize)
 {
   const int BUFSIZE(1000);
   char buf[BUFSIZE], *p;
@@ -1662,14 +1672,14 @@ bool parseAndProcessInput(/* ifstream& infile, ofstream& outfile, */ const int& 
   Site curSite, prevSite;
 
   BackgroundRegionManager brm;
-  SiteManager sm(/* outfile, */ pvalDistnSize);
+  SiteManager sm(pvalDistnSize);
   PvalueManager pvm(pvalDistnSize);
 
   prevSite.chrom = string("xxxNONExxx");
   curSite.hasPval = false;
   curSite.pval = -1.;
 
-  while (/* infile */ cin.getline(buf,BUFSIZE))
+  while (cin.getline(buf,BUFSIZE))
     {
       linenum++;
       fieldnum = 1;
@@ -1735,44 +1745,63 @@ bool parseAndProcessInput(/* ifstream& infile, ofstream& outfile, */ const int& 
 
 int main(int argc, const char* argv[])
 {
-  if (3 != argc)
+  const char *p;
+  if (2 == argc)
     {
-      cerr << "Usage:  " << argv[0] << " backgroundRegionSize pvalDistnSize\n"
-	   << "where backgroundRegionSize is in bp, e.g. 50001.\n"
-	   << "pvalDistnSize specifies how many P-values to use to estimate FDR (e.g. 1,000,000).\n"
-	   << "P-values will be discarded and new ones will be used after every pvalDistnSize sites.\n"
-	   << "Anytime fewer than pvalDistnSize P-values are available (e.g., while processing the end of the file),\n"
-	   << "P-values from the previous batch are sampled at random until pvalDistnSize of them are available.\n"
-	   << "output (sent to stdout) will be a .bed6 file with P-values in field 5 and FDR in field 6;\n"
-	   << "input (received from stdin) requires IDs in field 4 and counts in field 5.\n"
-	   << "Any fields beyond the 5th in the input will be ignored."
-	   << endl << endl;
-      return -1;
+      p = argv[1];
+      if (*p++ == '-')
+	{
+	  if (*p == '-')
+	    {
+	      p++;
+	      if (*p == 'v' || *p == 'V')
+		{
+		  cout << argv[0] << " version " << hotspot2_VERSION_MAJOR
+		       << '.' << hotspot2_VERSION_MINOR << endl;
+		  return 0;
+		}
+	    }
+	  else
+	    {
+	      if (*p == 'v' || *p == 'V')
+		{
+		  cout << argv[0] << " version " << hotspot2_VERSION_MAJOR
+		       << '.' << hotspot2_VERSION_MINOR << endl;
+		  return 0;
+		}
+	      else
+		{
+		Usage:
+		  cerr << "Usage:  " << argv[0] << " backgroundRegionSize pvalDistnSize [randomNumberSeed]\n"
+		       << "where backgroundRegionSize is in bp, e.g. 50001.\n"
+		       << "pvalDistnSize specifies how many P-values to use to estimate FDR (e.g. 1,000,000).\n"
+		       << "P-values will be discarded and new ones will be used after every pvalDistnSize sites.\n"
+		       << "Anytime fewer than pvalDistnSize P-values are available (e.g., while processing the end of the file),\n"
+		       << "P-values from the previous batch are sampled at random until pvalDistnSize of them are available.\n"
+		       << "A seed (positive integer) for the aforementioned random draws can optionally be provided as a 3rd argument.\n"
+		       << "output (sent to stdout) will be a .bed6 file with P-values in field 5 and FDR in field 6;\n"
+		       << "input (received from stdin) requires IDs in field 4 and counts in field 5.\n"
+		       << "Any fields beyond the 5th in the input will be ignored."
+		       << endl << endl;
+		  return -1;
+		}
+	    }
+	}
+      else
+	goto Usage;
     }
 
-  ios_base::sync_with_stdio(false); // calling this static method in this way turns off checks, speeds up I/
+  if (3 != argc && 4 != argc)
+    goto Usage;
 
-  //  ifstream ifs(argv[1]);
-  //  ofstream ofs(argv[2]);
+  ios_base::sync_with_stdio(false); // calling this static method in this way turns off checks, speeds up I/O
+
   int windowSize(atoi(argv[1]));
   int numPvalsToUseForFDR(atoi(argv[2]));
-
-/*
-  if (!ifs)
-    {
-      cerr << "Error:  Unable to open file \"" << argv[1]
-	   << "\" for read." << endl << endl;
-      return -1;
-    }
-  if (!ofs)
-    {
-      cerr << "Error:  Unable to open file \"" << argv[2]
-	   << "\" for write." << endl << endl;
-      return -1;
-    }
-*/
-
-  srand(time(NULL));
+  if (4 == argc)
+    srand(atoi(argv[3]));
+  else
+    srand(time(NULL));
 
   if (!parseAndProcessInput(windowSize, numPvalsToUseForFDR))
     return -1;
