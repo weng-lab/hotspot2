@@ -297,7 +297,7 @@ void SiteManager::getFDRvalsAndWriteAndFlush(PvalueManager& pvm)
       m_sites[i].qval = pvm.FDR(m_sites[i].pval);
       cout << m_sites[i].chrom << '\t' << m_sites[i].endPos - 1 << '\t'
 	   << m_sites[i].endPos << '\t' << m_sites[i].ID << '\t' << m_sites[i].pval
-	   << '\t' << m_sites[i].qval << endl;
+	   << '\t' << m_sites[i].qval << '\n';
       i++;
     }
   // Now move any remaining sites (unprocessed) to the beginning of the m_sites vector.
