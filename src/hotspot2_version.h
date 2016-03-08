@@ -1,2 +1,2 @@
-#define hotspot2_VERSION_MAJOR @hotspot2_VERSION_MAJOR@
-#define hotspot2_VERSION_MINOR @hotspot2_VERSION_MINOR@
+#define hotspot2_VERSION_MAJOR 0
+#define hotspot2_VERSION_MINOR 1
