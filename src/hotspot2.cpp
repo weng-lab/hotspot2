@@ -524,19 +524,6 @@ void BackgroundRegionManager::findCutoff()
 	    }
 	}
 
-
-/*
-      // BUGBUG Make sure it's correct to have the following assignments here,
-      // instead of in the block above (i.e. only when m_kcutoff changes).
-      // So far, so good...?
-      m_runningSum_count_duringPrevComputation = m_runningSum_count;
-      m_runningSum_countSquared_duringPrevComputation = m_runningSum_countSquared;
-      m_numPtsInNullRegion_duringPrevComputation = m_numPtsInNullRegion;
-*/
-
-
-
-
       return;
     }
 
