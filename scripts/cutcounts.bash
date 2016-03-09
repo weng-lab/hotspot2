@@ -24,9 +24,6 @@ if [[ -z "$TMPDIR" ]] ;then
 fi
 
 # temp files
-COUNTFILETMP="$TMPDIR/base-count.$name.bed"
-ALLBASE="$TMPDIR/all-perBase.$name.temp"
-BEDTMP="$TMPDIR/$name.count.uniques.bed"
 CUTSTMP="$TMPDIR/cuts.bed"
 FRAGMENTSTMP="$TMPDIR/fragments.bed"
 
@@ -42,17 +39,10 @@ fi
 
 if [[ ! -s "$CUTCOUNTS" ]]; then
 
-  time unstarch "$CUTS_BED" \
-    | cut -f1-3 \
-    | bedops -m - \
-    | awk '{ for(i = $2; i < $3; i += 1) { print $1"\t"i"\t"i + 1 }}' \
-    > "$ALLBASE"
-
-  time unstarch "$CUTS_BED" | \
-    bedmap --echo --count --delim "\t" "$ALLBASE" - \
+  time bedops --chop 1 "$CUTS_BED" \
+    | bedmap --faster --echo --count --delim "\t" "$ALLBASE" - \
     | awk '{print $1"\t"$2"\t"$3"\tid-"NR"\t"$4}' \
-    > "$COUNTFILETMP"
-
-  time starch --gzip "$COUNTFILETMP" > "$CUTCOUNTS"
+    | starch --gzip - \
+    > "$CUTCOUNTS"
 
 fi
