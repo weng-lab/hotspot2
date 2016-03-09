@@ -40,7 +40,7 @@ fi
 if [[ ! -s "$CUTCOUNTS" ]]; then
 
   time bedops --chop 1 "$CUTS_BED" \
-    | bedmap --faster --echo --count --delim "\t" "$ALLBASE" - \
+    | bedmap --faster --echo --count --delim "\t" - "$CUTS_BED" \
     | awk '{print $1"\t"$2"\t"$3"\tid-"NR"\t"$4}' \
     | starch --gzip - \
     > "$CUTCOUNTS"
