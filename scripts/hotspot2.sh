@@ -36,10 +36,8 @@ __EOF__
 }
 
 
-#EXCLUDE_THESE_REGIONS="/home/rsandstrom/development/AWG/blacklist/wgEncodeHg19ConsensusSignalArtifactRegions.bed"
 EXCLUDE_THESE_REGIONS="/dev/null"
 CHROM_SIZES=""
-MAPPABLE_FILE=""
 SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE=100 # i.e., 201bp regions
 BACKGROUND_WINDOW_SIZE=50001 # i.e., +/-25kb around each position
 PVAL_DISTN_SIZE=1000000
@@ -47,7 +45,7 @@ OVERLAPPING_OR_NOT="overlapping"
 FDR_THRESHOLD="0.05"
 SEED=""
 
-CUTCOUNT_EXE=$(dirname $0)/cutcounts.bash
+CUTCOUNT_EXE="$(dirname "$0")/cutcounts.bash"
 
 while getopts 'hc:e:m:n:p:s:w:O' opt ; do
   case "$opt" in
@@ -90,10 +88,10 @@ fi
 BAM=$1
 HOTSPOT_OUTFILE=$2
 
-outdir=$(dirname $HOTSPOT_OUTFILE)
+outdir="$(dirname "$HOTSPOT_OUTFILE")"
 
-CUTCOUNTS="$outdir/$(basename $BAM .bam).cutcounts.starch"
-OUTFILE="$outdir/$(basename $BAM .bam).allcalls.starch"
+CUTCOUNTS="$outdir/$(basename "$BAM" .bam).cutcounts.starch"
+OUTFILE="$outdir/$(basename "$BAM" .bam).allcalls.starch"
 
 TMPDIR=${TMPDIR:-$(mktemp -d)}
 
@@ -102,11 +100,11 @@ bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS"
 
 echo "Running hotspot2..."
 unstarch "$CUTCOUNTS" \
-    | $COUNTING_EXE $SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE $OVERLAPPING_OR_NOT "reportEachUnit" $CHROM_SIZES \
-    | bedops -n 1 - $EXCLUDE_THESE_REGIONS \
-    | $HOTSPOT_EXE $BACKGROUND_WINDOW_SIZE $PVAL_DISTN_SIZE $SEED \
+    | "$COUNTING_EXE" "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" "$OVERLAPPING_OR_NOT" "reportEachUnit" "$CHROM_SIZES" \
+    | bedops -n 1 - "$EXCLUDE_THESE_REGIONS" \
+    | "$HOTSPOT_EXE" "$BACKGROUND_WINDOW_SIZE" "$PVAL_DISTN_SIZE" $SEED \
     | starch - \
-    > $OUTFILE
+    > "$OUTFILE"
 
 
 # P-values of 0 will exist, and we don't want to do log(0).
@@ -115,20 +113,20 @@ unstarch "$CUTCOUNTS" \
 # The constant c below converts from natural logarithm to log10.
 
 echo "Thresholding..."
-unstarch $OUTFILE \
-  | awk -v threshold=$FDR_THRESHOLD '{if($6 <= threshold){print}}' \
+unstarch "$OUTFILE" \
+  | awk -v "threshold=$FDR_THRESHOLD" '{if($6 <= threshold){print}}' \
   | bedops -m - \
-  | bedmap --faster --delim "\t" --echo --min - $OUTFILE \
-  | awk 'BEGIN{OFS="\t";c=-0.4342944819}     \
-    {                                        \
-      if($4>1e-308) {                        \
-        print $1, $2, $3, "id-"NR, c*log($4) \
-      } else {                               \
-        print $1, $2, $3, "id-"NR, "308"     \
-      }                                      \
+  | bedmap --faster --delim "\t" --echo --min - "$OUTFILE" \
+  | awk 'BEGIN{OFS="\t";c=-0.4342944819}
+    {
+      if($4>1e-308) {
+        print $1, $2, $3, "id-"NR, c*log($4)
+      } else {
+        print $1, $2, $3, "id-"NR, "308"
+      }
     }' \
    | starch - \
-   > $HOTSPOT_OUTFILE
+   > "$HOTSPOT_OUTFILE"
 
 echo "Done!"
 
