@@ -7,6 +7,10 @@ Usage:  "$0" [options] in.bam out_spots.bed
 Options:
     -h                    Show this helpful help
 
+  Mandatory options:
+    -c CHROM_SIZES_FILE   The length of each chromosome, in BED or starch format
+                          Must include all chromosomes present in BAM input
+
   Recommended options:
     -e EXCLUDE_FILE       Exclude these regions from analysis
 
@@ -18,7 +22,6 @@ Options:
     -O                    Use non-overlapping windows (advanced option)
 
     -s SEED               Set this to an integer for repeatable results
-    -c CHROM_SIZES_FILE   The total length of each chromosome
 
     Both the exclude file and chromosome sizes file should be in bed or starch
     format.
@@ -80,7 +83,7 @@ shift $((OPTIND-1))
 COUNTING_EXE=tallyCountsInSmallWindows
 HOTSPOT_EXE=hotspot2
 
-if [ "$1" == "" ] || [ "$2" == "" ]; then
+if [[ -z "$1" || -z "$2" || -z "$CHROM_SIZES" ]]; then
   usage
 fi
 
