@@ -115,7 +115,7 @@ echo "Thresholding..."
 unstarch $OUTFILE \
   | awk -v threshold=$FDR_THRESHOLD '{if($6 <= threshold){print}}' \
   | bedops -m - \
-  | bedmap --delim "\t" --echo --min - $OUTFILE \
+  | bedmap --faster --delim "\t" --echo --min - $OUTFILE \
   | awk 'BEGIN{OFS="\t";c=-0.4342944819}     \
     {                                        \
       if($4>1e-308) {                        \
