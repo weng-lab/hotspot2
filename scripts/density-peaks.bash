@@ -75,6 +75,7 @@ done
 
 cat $outs \
   | awk -v h=$halfbin '{m=($2+$3)/2; left=m-h; if(left < 0) left=0; print $1"\t"left"\t"m+h"\t"$4"\t"$5}' - \
+  | starch - \
   > $pk
 
 #need to add pph
