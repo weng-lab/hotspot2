@@ -1,16 +1,17 @@
 #!/bin/bash
 set -x -e -o pipefail
 
-if [[ $# != 5 ]] ; then
-  echo "Usage: $0 tmpdir wavelets-binary chrom-sizes.bed density-out.starch peaks-out.starch" >&2
+if [[ $# != 6 ]] ; then
+  echo "Usage: $0 tmpdir wavelets-binary tags.starch chrom-sizes.starch density-out.starch peaks-out.starch" >&2
   exit 2
 fi
 
 tmpdir=$1
 wavelets=$2
-chrfile=$3
-density=$4
-pk=$5
+tags=$3
+chrfile=$4
+density=$5
+pk=$6
 
 if [ ! -d $tmpdir ] then
   mkdir -p $tmpdir
@@ -37,7 +38,7 @@ sort-bed $chrfile \
          print $1, start, start+s, "."; \
        } \
      }' \
-  | bedmap --faster --range $rangepad --delim "\t" --echo --count - $tagsb \
+  | bedmap --faster --range $rangepad --delim "\t" --echo --count - $tags \
   | starch - \
  > $density
 
