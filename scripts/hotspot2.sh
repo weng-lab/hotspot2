@@ -7,6 +7,10 @@ Usage:  "$0" [options] in.bam out_spots.bed
 Options:
     -h                    Show this helpful help
 
+  Mandatory options:
+    -c CHROM_SIZES_FILE   The length of each chromosome, in BED or starch format
+                          Must include all chromosomes present in BAM input
+
   Recommended options:
     -e EXCLUDE_FILE       Exclude these regions from analysis
 
@@ -18,7 +22,6 @@ Options:
     -O                    Use non-overlapping windows (advanced option)
 
     -s SEED               Set this to an integer for repeatable results
-    -c CHROM_SIZES_FILE   The total length of each chromosome
 
     Both the exclude file and chromosome sizes file should be in bed or starch
     format.
@@ -33,10 +36,8 @@ __EOF__
 }
 
 
-#EXCLUDE_THESE_REGIONS="/home/rsandstrom/development/AWG/blacklist/wgEncodeHg19ConsensusSignalArtifactRegions.bed"
 EXCLUDE_THESE_REGIONS="/dev/null"
 CHROM_SIZES=""
-MAPPABLE_FILE=""
 SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE=100 # i.e., 201bp regions
 BACKGROUND_WINDOW_SIZE=50001 # i.e., +/-25kb around each position
 PVAL_DISTN_SIZE=1000000
@@ -44,11 +45,10 @@ OVERLAPPING_OR_NOT="overlapping"
 FDR_THRESHOLD="0.05"
 SEED=""
 
-CUTCOUNT_EXE=$(dirname $0)/cutcounts.bash
-DENSPK_EXE=$(dirname $0)/density-peaks.bash
-
 echo "checking system for modwt executable"
 WAVELETS_EXE=$(which modwt)
+CUTCOUNT_EXE="$(dirname "$0")/cutcounts.bash"
+DENSPK_EXE="$(dirname "$0")/density-peaks.bash"
 
 while getopts 'hc:e:m:n:p:s:w:O' opt ; do
   case "$opt" in
@@ -84,19 +84,19 @@ shift $((OPTIND-1))
 COUNTING_EXE=tallyCountsInSmallWindows
 HOTSPOT_EXE=hotspot2
 
-if [ "$1" == "" ] || [ "$2" == "" ]; then
+if [[ -z "$1" || -z "$2" || -z "$CHROM_SIZES" ]]; then
   usage
 fi
 
 BAM=$1
 HOTSPOT_OUTFILE=$2
 
-outdir=$(dirname $HOTSPOT_OUTFILE)
+outdir="$(dirname "$HOTSPOT_OUTFILE")"
 
-CUTCOUNTS="$outdir/$(basename $BAM .bam).cutcounts.starch"
-OUTFILE="$outdir/$(basename $BAM .bam).allcalls.starch"
-DENSITY_OUTFILE="$outdir/$(basename $BAM .bam).density.starch"
-PEAKS_OUTFILE="$outdir/$(basename $BAM .bam).peaks.starch"
+CUTCOUNTS="$outdir/$(basename "$BAM" .bam).cutcounts.starch"
+OUTFILE="$outdir/$(basename "$BAM" .bam).allcalls.starch"
+DENSITY_OUTFILE="$outdir/$(basename "$BAM" .bam).density.starch"
+PEAKS_OUTFILE="$outdir/$(basename "$BAM" .bam).peaks.starch"
 
 TMPDIR=${TMPDIR:-$(mktemp -d)}
 
@@ -105,11 +105,11 @@ bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS"
 
 echo "Running hotspot2..."
 unstarch "$CUTCOUNTS" \
-    | $COUNTING_EXE $SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE $OVERLAPPING_OR_NOT "reportEachUnit" $CHROM_SIZES \
-    | bedops -n 1 - $EXCLUDE_THESE_REGIONS \
-    | $HOTSPOT_EXE $BACKGROUND_WINDOW_SIZE $PVAL_DISTN_SIZE $SEED \
+    | "$COUNTING_EXE" "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" "$OVERLAPPING_OR_NOT" "reportEachUnit" "$CHROM_SIZES" \
+    | bedops -n 1 - "$EXCLUDE_THESE_REGIONS" \
+    | "$HOTSPOT_EXE" "$BACKGROUND_WINDOW_SIZE" "$PVAL_DISTN_SIZE" $SEED \
     | starch - \
-    > $OUTFILE
+    > "$OUTFILE"
 
 
 # P-values of 0 will exist, and we don't want to do log(0).
@@ -118,20 +118,20 @@ unstarch "$CUTCOUNTS" \
 # The constant c below converts from natural logarithm to log10.
 
 echo "Thresholding..."
-unstarch $OUTFILE \
-  | awk -v threshold=$FDR_THRESHOLD '{if($6 <= threshold){print}}' \
+unstarch "$OUTFILE" \
+  | awk -v "threshold=$FDR_THRESHOLD" '{if($6 <= threshold){print}}' \
   | bedops -m - \
-  | bedmap --faster --delim "\t" --echo --min - $OUTFILE \
-  | awk 'BEGIN{OFS="\t";c=-0.4342944819}     \
-    {                                        \
-      if($4>1e-308) {                        \
-        print $1, $2, $3, "id-"NR, c*log($4) \
-      } else {                               \
-        print $1, $2, $3, "id-"NR, "308"     \
-      }                                      \
+  | bedmap --faster --delim "\t" --echo --min - "$OUTFILE" \
+  | awk 'BEGIN{OFS="\t";c=-0.4342944819}
+    {
+      if($4>1e-308) {
+        print $1, $2, $3, "id-"NR, c*log($4)
+      } else {
+        print $1, $2, $3, "id-"NR, "308"
+      }
     }' \
    | starch - \
-   > $HOTSPOT_OUTFILE
+   > "$HOTSPOT_OUTFILE"
 
 bash "$DENSPK_EXE" "$TMPDIR" "$WAVELETS_EXE" "$CUTCOUNTS" "$CHROM_SIZES" "$DENSITY_OUTFILE" "$PEAKS_OUTFILE"
 
