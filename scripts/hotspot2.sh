@@ -45,6 +45,10 @@ FDR_THRESHOLD="0.05"
 SEED=""
 
 CUTCOUNT_EXE=$(dirname $0)/cutcounts.bash
+DENSPK_EXE=$(dirname $0)/density-peaks.bash
+
+echo "checking system for modwt executable"
+WAVELETS_EXE=$(which modwt)
 
 while getopts 'hc:e:m:n:p:s:w:O' opt ; do
   case "$opt" in
@@ -91,6 +95,8 @@ outdir=$(dirname $HOTSPOT_OUTFILE)
 
 CUTCOUNTS="$outdir/$(basename $BAM .bam).cutcounts.starch"
 OUTFILE="$outdir/$(basename $BAM .bam).allcalls.starch"
+DENSITY_OUTFILE="$outdir/$(basename $BAM .bam).density.starch"
+PEAKS_OUTFILE="$outdir/$(basename $BAM .bam).peaks.starch"
 
 TMPDIR=${TMPDIR:-$(mktemp -d)}
 
@@ -126,6 +132,8 @@ unstarch $OUTFILE \
     }' \
    | starch - \
    > $HOTSPOT_OUTFILE
+
+bash "$DENSPK_EXE" "$TMPDIR" "$WAVELETS_EXE" "$CHROM_SIZES" "$DENSITY_OUTFILE" "$PEAKS_OUTFILE"
 
 echo "Done!"
 

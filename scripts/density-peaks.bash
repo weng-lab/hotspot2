@@ -24,9 +24,8 @@ rangepad=$((bins/2-step/2))
 
 ## wavelet peakfinding params
 wavletlvl=3
-filter=Haar
+filter_type=Haar
 boundary_type=reflected
-lvl=3
 
 
 ## Tag density, 150bp window, sliding every 20bp, used for peak-finding.
@@ -46,9 +45,11 @@ echo "peak-finding..."
 outs=""
 for chr in $(sort-bed $chrfile | cut -f1)
 do
+  rm -f $tmpdir/.waves
+
   unstarch $chr $density \
     | cut -f5 \
-    | wavelets --level $waveletlvl --to-stdout --boundary $boundary_type --filter $filter - \
+    | wavelets --level $waveletlvl --to-stdout --boundary $boundary_type --filter $filter_type - \
     > $tmpdir/.waves
 
   unstarch $chr $density \
@@ -71,8 +72,10 @@ do
   outs="$outs $tmpdir/.wave.$chr"
 done
 
-sort-bed $outs \
+cat $outs \
   | awk -v h=$halfbin '{m=($2+$3)/2; left=m-h; if(left < 0) left=0; print $1"\t"left"\t"m+h"\t"$4"\t"$5}' - \
   > $pk
+
+#need to add pph
 
 exit 0
