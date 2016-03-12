@@ -31,7 +31,7 @@ boundary_type=reflected
 
 ## Tag density, 150bp window, sliding every 20bp, used for peak-finding.
 echo "calculating densities..."
-sort-bed $chrfile \
+bedops --ec -u $chrfile \
   | awk -v b=$bins -v s=$step \
      'BEGIN {OFS="\t"; hs=s/2; hb=b/2} ; { \
        for ( start = $2+hb-hs; start < $3-hb-hs; start+=s) { \
@@ -44,7 +44,7 @@ sort-bed $chrfile \
 
 echo "peak-finding..."
 outs=""
-for chr in $(sort-bed $chrfile | cut -f1)
+for chr in $(bedops --ec -u $chrfile | cut -f1)
 do
   rm -f $tmpdir/.waves
 
