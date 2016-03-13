@@ -45,18 +45,6 @@ OVERLAPPING_OR_NOT="overlapping"
 FDR_THRESHOLD="0.05"
 SEED=""
 
-echo "checking system for modwt and BEDOPS"
-if [ $(which modwt &>/dev/null || echo "$?") ] ; then
-  echo "Could not find modwt!"
-  exit -1
-elif [ $(which bedmap &>/dev/null || echo "$?") ] ; then
-  echo "Did not find BEDOPS (bedmap)!"
-  exit -1
-fi
-WAVELETS_EXE=$(which modwt)
-CUTCOUNT_EXE="$(dirname "$0")/cutcounts.bash"
-DENSPK_EXE="$(dirname "$0")/density-peaks.bash"
-
 while getopts 'hc:e:m:n:p:s:w:O' opt ; do
   case "$opt" in
     h)
@@ -88,9 +76,6 @@ while getopts 'hc:e:m:n:p:s:w:O' opt ; do
 done
 shift $((OPTIND-1))
 
-COUNTING_EXE=tallyCountsInSmallWindows
-HOTSPOT_EXE=hotspot2
-
 if [[ -z "$1" || -z "$2" || -z "$CHROM_SIZES" ]]; then
   usage
 fi
@@ -98,12 +83,31 @@ fi
 BAM=$1
 HOTSPOT_OUTFILE=$2
 
-outdir="$(dirname "$HOTSPOT_OUTFILE")"
-
 CUTCOUNTS="$outdir/$(basename "$BAM" .bam).cutcounts.starch"
 OUTFILE="$outdir/$(basename "$BAM" .bam).allcalls.starch"
 DENSITY_OUTFILE="$outdir/$(basename "$BAM" .bam).density.starch"
 PEAKS_OUTFILE="$outdir/$(basename "$BAM" .bam).peaks.starch"
+
+
+echo "checking system for modwt, BEDOPS, and samtools"
+if [ $(which modwt &>/dev/null || echo "$?") ] ; then
+  echo "Could not find modwt!"
+  exit -1
+elif [ $(which bedmap &>/dev/null || echo "$?") ] ; then
+  echo "Did not find BEDOPS (bedmap)!"
+  exit -1
+elif [ $(which samtools &>/dev/null || echo "$?") ] ; then
+  echo "Did not find samtools!"
+  exit -1
+fi
+WAVELETS_EXE=$(which modwt)
+CUTCOUNT_EXE="$(dirname "$0")/cutcounts.bash"
+DENSPK_EXE="$(dirname "$0")/density-peaks.bash"
+COUNTING_EXE=tallyCountsInSmallWindows
+HOTSPOT_EXE=hotspot2
+
+outdir="$(dirname "$HOTSPOT_OUTFILE")"
+mkdir -p $outdir
 
 TMPDIR=${TMPDIR:-$(mktemp -d)}
 

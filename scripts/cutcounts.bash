@@ -10,45 +10,59 @@ fi
 bam=$1
 CUTCOUNTS=$2
 
-awk_cut="$(dirname $0)/cutfragments.awk"
-
-
 name=$(basename $bam .bam)
 outputdir="$(dirname $bam)"
 
 FRAGMENTS=$outputdir/$name.fragments.sorted.bed.starch
 
+clean=0
 if [[ -z "$TMPDIR" ]] ;then
   TMPDIR=$(mktemp -d)
+  clean=1
 fi
-CUTS_BED=$TMPDIR/$name.cuts.sorted.bed
 
 # temp files
-CUTSTMP="$TMPDIR/cuts.bed"
 FRAGMENTSTMP="$TMPDIR/fragments.bed"
 
 # Create cut counts and fragments if they don't exist
-if [[  ! -s "$CUTS_BED" || ! -s "$FRAGMENTS" ]]; then
+if [[  ! -s "$CUTCOUNTS" || ! -s "$FRAGMENTS" ]]; then
 
   time bam2bed --do-not-sort < "$bam" \
-    | awk -v "cutfile=$CUTSTMP" -v "fragmentfile=$FRAGMENTSTMP" -f "$awk_cut"
-  sort-bed --max-mem 8G "$FRAGMENTSTMP" | starch - > "$FRAGMENTS"
-  sort-bed --max-mem 8G "$CUTSTMP"      > "$CUTS_BED"
+    | awk -v fragmentfile=$FRAGMENTSTMP \
+        'BEGIN { FS="\t"; OFS=FS } ; { \
+          strand=$6; \
+          read_start=$2; \
+          read_end=$3; \
+          read_id=$1; \
+          flag=$7; \
+          tlen=$11; \
+          if( strand == "+" ) { \
+            cut_start = read_start; \
+            cut_end = read_start + 1; \
+          } else { \
+            cut_start= read_end; \
+            cut_end = read_end + 1; \
+          } \
+          print read_id, cut_start, cut_end; \
+          if (tlen > 0) { \
+            fragment_end = read_start + tlen; \
+            print read_id, read_start, fragment_end, ".", "." > fragmentfile; \
+          } \
+        }' \
+    | sort-bed --max-mem 8G - \
+    | uniq -c \
+    | awk '{ print $2"\t"$3"\t"$4"\tid-"NR"\t"$1 }' \
+    | starch - \
+    > "$CUTCOUNTS"
 
-  rm -f "$CUTSTMP"
+  sort-bed --max-mem 8G "$FRAGMENTSTMP" | starch - > "$FRAGMENTS"
+
   rm -f "$FRAGMENTSTMP"
 
 fi
 
-if [[ ! -s "$CUTCOUNTS" ]]; then
-
-  time bedops --chop 1 "$CUTS_BED" \
-    | bedmap --faster --echo --count --delim "\t" - "$CUTS_BED" \
-    | awk '{print $1"\t"$2"\t"$3"\tid-"NR"\t"$4}' \
-    | starch - \
-    > "$CUTCOUNTS"
-
-  rm -f "$CUTS_BED"
+if [ $clean != 0 ] ; then
+  rm -rf $TMPDIR
 fi
 
 exit 0
