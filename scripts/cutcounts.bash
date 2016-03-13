@@ -50,3 +50,5 @@ if [[ ! -s "$CUTCOUNTS" ]]; then
 
   rm -f "$CUTS_BED"
 fi
+
+exit 0

@@ -45,7 +45,14 @@ OVERLAPPING_OR_NOT="overlapping"
 FDR_THRESHOLD="0.05"
 SEED=""
 
-echo "checking system for modwt executable"
+echo "checking system for modwt and BEDOPS"
+if [ $(which modwt &>/dev/null || echo "$?") ] ; then
+  echo "Could not find modwt!"
+  exit -1
+elif [ $(which bedmap &>/dev/null || echo "$?") ] ; then
+  echo "Did not find BEDOPS (bedmap)!"
+  exit -1
+fi
 WAVELETS_EXE=$(which modwt)
 CUTCOUNT_EXE="$(dirname "$0")/cutcounts.bash"
 DENSPK_EXE="$(dirname "$0")/density-peaks.bash"
@@ -119,7 +126,7 @@ unstarch "$CUTCOUNTS" \
 
 echo "Thresholding..."
 unstarch "$OUTFILE" \
-  | awk -v "threshold=$FDR_THRESHOLD" '{if($6 <= threshold){print}}' \
+  | awk -v "threshold=$FDR_THRESHOLD" '($6 <= threshold)' \
   | bedops -m - \
   | bedmap --faster --delim "\t" --echo --min - "$OUTFILE" \
   | awk 'BEGIN{OFS="\t";c=-0.4342944819}
@@ -133,8 +140,8 @@ unstarch "$OUTFILE" \
    | starch - \
    > "$HOTSPOT_OUTFILE"
 
-bash "$DENSPK_EXE" "$TMPDIR" "$WAVELETS_EXE" "$CUTCOUNTS" "$CHROM_SIZES" "$DENSITY_OUTFILE" "$PEAKS_OUTFILE"
+bash "$DENSPK_EXE" "$TMPDIR" "$WAVELETS_EXE" "$CUTCOUNTS" "$HOTSPOT_OUTFILE" "$CHROM_SIZES" "$DENSITY_OUTFILE" "$PEAKS_OUTFILE"
 
 echo "Done!"
 
-exit
+exit 0
