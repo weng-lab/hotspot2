@@ -46,7 +46,7 @@ if [[  ! -s "$CUTCOUNTS" || ! -s "$FRAGMENTS" ]]; then
           print read_id, cut_start, cut_end; \
           if (tlen > 0) { \
             fragment_end = read_start + tlen; \
-            print read_id, read_start, fragment_end, ".", "." > fragmentfile; \
+            print read_id, read_start, fragment_end > fragmentfile; \
           } \
         }' \
     | sort-bed --max-mem 8G - \

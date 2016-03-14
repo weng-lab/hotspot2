@@ -11,3 +11,7 @@ March 14, 2016
      by badspot heuristics.  Do we add those heurisics again?
 4. Peaks are set to a fixed size, and they may overlap.  I believe that Bob's final peak calls were merged and some min or max score was mapped on.  This needs to be looked at.
 5. Need to add a share/ subdir (in parallel with doc/ and scripts/) that shows running hotspot2.sh in action.
+6. If possible, pass an FDR threshold to the core hotspot algorithm and only spit out positions that meet the criterion unless there is a --all-output flag passed to the program or something.
+    Writing scores at every position doesn't scale well (large I/O; have to wait for everything to write before doing the simpler thresholding later - this could all be piped to make things
+    a lot faster and cover the vast majority of use cases).  It would be better to have someone who is interested in all scores to modify the hotspot.sh script a tiny bit to include that
+    flag and do thresholding later on (as it is done now).
