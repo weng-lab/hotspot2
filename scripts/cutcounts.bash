@@ -11,7 +11,7 @@ bam=$1
 CUTCOUNTS=$2
 
 name=$(basename $bam .bam)
-outputdir="$(dirname $bam)"
+outputdir="$(dirname $CUTCOUNTS)"
 
 FRAGMENTS=$outputdir/$name.fragments.sorted.bed.starch
 
