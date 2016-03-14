@@ -10,3 +10,4 @@ March 14, 2016
 3. We see hotspots that are very small (3 bp, for example).  We force peak calls in all hotspots so peaks are affected.  These may be regions that would normally be filtered
      by badspot heuristics.  Do we add those heurisics again?
 4. Peaks are set to a fixed size, and they may overlap.  I believe that Bob's final peak calls were merged and some min or max score was mapped on.  This needs to be looked at.
+5. Need to add a share/ subdir (in parallel with doc/ and scripts/) that shows running hotspot2.sh in action.
