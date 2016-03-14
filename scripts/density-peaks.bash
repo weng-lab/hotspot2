@@ -14,7 +14,7 @@ chrfile=$5
 density=$6
 pk=$7
 
-if [ ! -d $tmpdir ] then
+if [ ! -d $tmpdir ] ; then
   mkdir -p $tmpdir
 fi
 
@@ -25,26 +25,27 @@ halfbin=$((bins/2))
 rangepad=$((bins/2-step/2))
 
 ## wavelet peakfinding params
-wavletlvl=3
+waveletlvl=3
 filter_type=Haar
 boundary_type=reflected
 
 echo "calculating densities and peak-finding..."
 pkouts=""
 densouts=""
-for chr in $(bedops --ec -u $chrfile | cut -f1)
+for chr in $(unstarch --list-chr $hotspots)
 do
   echo "\tprocessing $chr"
 
   ## Tag density, 150bp window, sliding every 20bp, used for peak-finding and display
+  ##  --sweep-all used to prevent a possible broken pipes
   bedops --ec -u --chrom $chr $chrfile \
-    | awk -v b=$bins -v s=$step
-       'BEGIN {OFS="\t"; hs=s/2; hb=b/2} ; {
-         for ( start = $2+hb-hs; start < $3-hb-hs; start+=s) {
-           print $1, start, start+s, ".";
-         }
+    | awk -v b=$bins -v s=$step \
+       'BEGIN {OFS="\t"; hs=s/2; hb=b/2} ; { \
+         for ( start = $2+hb-hs; start < $3-hb-hs; start+=s) { \
+           print $1, start, start+s, "."; \
+         } \
        }' \
-    | bedmap --faster --chrom $chr --range $rangepad --delim "\t" --echo --count - $tags \
+    | bedmap --faster --sweep-all --chrom $chr --range $rangepad --delim "\t" --echo --count - $tags \
     | starch - \
    > $tmpdir/.dens.$chr.starch
 
@@ -52,11 +53,12 @@ do
 
   unstarch $tmpdir/.dens.$chr.starch \
     | cut -f5 \
-    | wavelets --level $waveletlvl --to-stdout --boundary $boundary_type --filter $filter_type - \
+    | $wavelets --level $waveletlvl --to-stdout --boundary $boundary_type --filter $filter_type - \
     > $tmpdir/.waves
 
   ## changed from Bob's which printed out the wavelet smoothed value for a peak, instead
   ## print the density value so things match up with the forced peak-per-hotspots
+  ##   bedops -n uses --ec to prevent possible broken pipe
   unstarch $tmpdir/.dens.$chr.starch \
     | paste - $tmpdir/.waves \
     | awk 'BEGIN{incr=0} ; {
@@ -73,11 +75,12 @@ do
           }' \
     | cut -f1-5 \
     | tee $tmpdir/.wave-pks.$chr \
-    | bedops -n 1 $hotspots - \
+    | bedops --ec -n 1 $hotspots - \
     > $tmpdir/.hots-no-pks.$chr
 
   ## force a peak call in hotspots with no current peak calls ('peak-per-hotspot')
-  bedmap --faster --max-element $tmpdir/.hots-no-pks.$chr $tmpdir/.dens.$chr.starch \
+  ##   --sweep-all to prevent a possible broken pipe; --prec 1 shows decimals for peaks forced by hotspot calls
+  bedmap --faster --sweep-all --prec 1 --max-element $tmpdir/.hots-no-pks.$chr $tmpdir/.dens.$chr.starch \
     | sort-bed - \
     | bedops -u - $tmpdir/.wave-pks.$chr \
     > $tmpdir/.full.pks.$chr

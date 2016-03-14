@@ -1,0 +1,12 @@
+###############
+sjn
+March 14, 2016
+
+1. Use better warnings to the compilation of hotspot2 and clean them up.
+2. We have 3 consumers to satisfy: a) internal, b) external with clusters, c) external without a cluster
+     I think that we should parallelize work by chromosomes, or at least make running it that way easy.  Internally, we have limited cluster resources, but small, fast-moving
+       jobs (no matter how many) is a smart way to use a cluster.
+     Cluster work affects scratch directories.  Parallel work will write much more to non-tmp directories.  starchcat can be highly useful here.
+3. We see hotspots that are very small (3 bp, for example).  We force peak calls in all hotspots so peaks are affected.  These may be regions that would normally be filtered
+     by badspot heuristics.  Do we add those heurisics again?
+4. Peaks are set to a fixed size, and they may overlap.  I believe that Bob's final peak calls were merged and some min or max score was mapped on.  This needs to be looked at.

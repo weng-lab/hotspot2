@@ -83,13 +83,7 @@ fi
 BAM=$1
 HOTSPOT_OUTFILE=$2
 
-CUTCOUNTS="$outdir/$(basename "$BAM" .bam).cutcounts.starch"
-OUTFILE="$outdir/$(basename "$BAM" .bam).allcalls.starch"
-DENSITY_OUTFILE="$outdir/$(basename "$BAM" .bam).density.starch"
-PEAKS_OUTFILE="$outdir/$(basename "$BAM" .bam).peaks.starch"
-
-
-echo "checking system for modwt, BEDOPS, and samtools"
+echo "checking system for modwt, BEDOPS, samtools, ..."
 if [ $(which modwt &>/dev/null || echo "$?") ] ; then
   echo "Could not find modwt!"
   exit -1
@@ -98,6 +92,12 @@ elif [ $(which bedmap &>/dev/null || echo "$?") ] ; then
   exit -1
 elif [ $(which samtools &>/dev/null || echo "$?") ] ; then
   echo "Did not find samtools!"
+  exit -1
+elif [ $(which hotspot2 &>/dev/null || echo "$?") ] ; then
+  echo "Did not find hotspot2!"
+  exit -1
+elif [ $(which tallyCountsInSmallWindows &>/dev/null || echo "$?") ] ; then
+  echo "Did not find tallyCountsInSmallWindows!"
   exit -1
 fi
 WAVELETS_EXE=$(which modwt)
@@ -108,6 +108,12 @@ HOTSPOT_EXE=hotspot2
 
 outdir="$(dirname "$HOTSPOT_OUTFILE")"
 mkdir -p $outdir
+
+CUTCOUNTS="$outdir/$(basename "$BAM" .bam).cutcounts.starch"
+OUTFILE="$outdir/$(basename "$BAM" .bam).allcalls.starch"
+DENSITY_OUTFILE="$outdir/$(basename "$BAM" .bam).density.starch"
+PEAKS_OUTFILE="$outdir/$(basename "$BAM" .bam).peaks.starch"
+
 
 TMPDIR=${TMPDIR:-$(mktemp -d)}
 
@@ -132,7 +138,7 @@ echo "Thresholding..."
 unstarch "$OUTFILE" \
   | awk -v "threshold=$FDR_THRESHOLD" '($6 <= threshold)' \
   | bedops -m - \
-  | bedmap --faster --delim "\t" --echo --min - "$OUTFILE" \
+  | bedmap --faster --sweep-all --delim "\t" --echo --min - "$OUTFILE" \
   | awk 'BEGIN{OFS="\t";c=-0.4342944819}
     {
       if($4>1e-308) {

@@ -1,0 +1,5 @@
+Usage and Results
+
+1. Peaks have values (column 5) that are integers and floating numbers out to 1 decimal place.  The difference distinguishes peaks called by the actual peak caller vs. forced peak calls due to
+    hotspot regions (we require at least 1 peak per hotspot).
+
