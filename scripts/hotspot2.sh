@@ -120,8 +120,9 @@ TMPDIR=${TMPDIR:-$(mktemp -d)}
 echo "Cutting..."
 bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS"
 
+# don't unstarch $CUTCOUNTS and feed to $COUNTING_EXE since things like chrM may be in $CUTCOUNTS but not $CHROM_SIZES
 echo "Running hotspot2..."
-unstarch "$CUTCOUNTS" \
+bedops -e 1 "$CUTCOUNTS" "$CHROM_SIZE" \
     | "$COUNTING_EXE" "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" "$OVERLAPPING_OR_NOT" "reportEachUnit" "$CHROM_SIZES" \
     | bedops -n 1 - "$EXCLUDE_THESE_REGIONS" \
     | "$HOTSPOT_EXE" "$BACKGROUND_WINDOW_SIZE" "$PVAL_DISTN_SIZE" $SEED \
@@ -136,19 +137,19 @@ unstarch "$CUTCOUNTS" \
 
 echo "Thresholding..."
 unstarch "$OUTFILE" \
-  | awk -v "threshold=$FDR_THRESHOLD" '($6 <= threshold)' \
-  | bedops -m - \
-  | bedmap --faster --sweep-all --delim "\t" --echo --min - "$OUTFILE" \
-  | awk 'BEGIN{OFS="\t";c=-0.4342944819}
-    {
-      if($4>1e-308) {
-        print $1, $2, $3, "id-"NR, c*log($4)
-      } else {
-        print $1, $2, $3, "id-"NR, "308"
-      }
-    }' \
-   | starch - \
-   > "$HOTSPOT_OUTFILE"
+    | awk -v "threshold=$FDR_THRESHOLD" '($6 <= threshold)' \
+    | bedops -m - \
+    | bedmap --faster --sweep-all --delim "\t" --echo --min - "$OUTFILE" \
+    | awk 'BEGIN{OFS="\t";c=-0.4342944819}
+      {
+        if($4>1e-308) {
+          print $1, $2, $3, "id-"NR, c*log($4)
+        } else {
+          print $1, $2, $3, "id-"NR, "308"
+        }
+      }' \
+     | starch - \
+     > "$HOTSPOT_OUTFILE"
 
 bash "$DENSPK_EXE" "$TMPDIR" "$WAVELETS_EXE" "$CUTCOUNTS" "$HOTSPOT_OUTFILE" "$CHROM_SIZES" "$DENSITY_OUTFILE" "$PEAKS_OUTFILE"
 

@@ -37,7 +37,7 @@ do
   echo "\tprocessing $chr"
 
   ## Tag density, 150bp window, sliding every 20bp, used for peak-finding and display
-  ##  --sweep-all used to prevent a possible broken pipes
+  ##  --sweep-all used to prevent a possible broken pipe
   bedops --ec -u --chrom $chr $chrfile \
     | awk -v b=$bins -v s=$step \
        'BEGIN {OFS="\t"; hs=s/2; hb=b/2} ; { \
