@@ -34,7 +34,7 @@ pkouts=""
 densouts=""
 for chr in $(unstarch --list-chr $hotspots)
 do
-  echo "\tprocessing $chr"
+  printf "\tprocessing $chr\n"
 
   ## Tag density, 150bp window, sliding every 20bp, used for peak-finding and display
   ##  --sweep-all used to prevent a possible broken pipe
@@ -46,7 +46,6 @@ do
          } \
        }' \
     | bedmap --faster --sweep-all --chrom $chr --range $rangepad --delim "\t" --echo --count - $tags \
-    | sed s/NAN/0/ \
     | starch - \
    > $tmpdir/.dens.$chr.starch
 
