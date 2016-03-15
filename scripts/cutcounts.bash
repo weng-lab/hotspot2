@@ -13,7 +13,7 @@ CUTCOUNTS=$2
 name=$(basename $bam .bam)
 outputdir="$(dirname $CUTCOUNTS)"
 
-FRAGMENTS=$outputdir/$name.fragments.sorted.bed.starch
+FRAGMENTS=$outputdir/$name.fragments.sorted.starch
 
 clean=0
 if [[ -z "$TMPDIR" ]] ;then

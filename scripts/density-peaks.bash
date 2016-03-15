@@ -46,6 +46,7 @@ do
          } \
        }' \
     | bedmap --faster --sweep-all --chrom $chr --range $rangepad --delim "\t" --echo --count - $tags \
+    | sed s/NAN/0/ \
     | starch - \
    > $tmpdir/.dens.$chr.starch
 
@@ -75,7 +76,7 @@ do
           }' \
     | cut -f1-5 \
     | tee $tmpdir/.wave-pks.$chr \
-    | bedops --ec -n 1 $hotspots - \
+    | bedops --ec --chrom $chr -n 1 $hotspots - \
     > $tmpdir/.hots-no-pks.$chr
 
   ## force a peak call in hotspots with no current peak calls ('peak-per-hotspot')
