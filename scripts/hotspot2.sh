@@ -2,7 +2,7 @@
 
 usage(){
   cat >&2 <<__EOF__
-Usage:  "$0" [options] in.bam out_spots.bed
+Usage:  "$0" [options] in.bam outdir
 
 Options:
     -h                    Show this helpful help
@@ -45,7 +45,7 @@ OVERLAPPING_OR_NOT="overlapping"
 FDR_THRESHOLD="0.05"
 SEED=""
 
-while getopts 'hc:e:m:n:p:s:w:O' opt ; do
+while getopts 'hc:e:f:m:n:p:s:w:O' opt ; do
   case "$opt" in
     h)
       usage
@@ -55,6 +55,9 @@ while getopts 'hc:e:m:n:p:s:w:O' opt ; do
       ;;
     e)
       EXCLUDE_THESE_REGIONS=$OPTARG
+      ;;
+    f)
+      FDR_THRESHOLD=$OPTARG
       ;;
     n)
       SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE=$OPTARG
@@ -81,7 +84,7 @@ if [[ -z "$1" || -z "$2" || -z "$CHROM_SIZES" ]]; then
 fi
 
 BAM=$1
-HOTSPOT_OUTFILE=$2
+OUTDIR=$2
 
 echo "checking system for modwt, BEDOPS, samtools, ..."
 if [ $(which modwt &>/dev/null || echo "$?") ] ; then
@@ -106,14 +109,13 @@ DENSPK_EXE="$(dirname "$0")/density-peaks.bash"
 COUNTING_EXE=tallyCountsInSmallWindows
 HOTSPOT_EXE=hotspot2
 
-outdir="$(dirname "$HOTSPOT_OUTFILE")"
-mkdir -p $outdir
+mkdir -p $OUTDIR
 
-CUTCOUNTS="$outdir/$(basename "$BAM" .bam).cutcounts.starch"
-OUTFILE="$outdir/$(basename "$BAM" .bam).allcalls.starch"
-DENSITY_OUTFILE="$outdir/$(basename "$BAM" .bam).density.starch"
-PEAKS_OUTFILE="$outdir/$(basename "$BAM" .bam).peaks.starch"
-
+HOTSPOT_OUTFILE="$OUTDIR/$(basename "$BAM" .bam).hotspots.fdr"$FDR_THRESHOLD".starch"
+CUTCOUNTS="$OUTDIR/$(basename "$BAM" .bam).cutcounts.starch"
+OUTFILE="$OUTDIR/$(basename "$BAM" .bam).allcalls.starch"
+DENSITY_OUTFILE="$OUTDIR/$(basename "$BAM" .bam).density.starch"
+PEAKS_OUTFILE="$OUTDIR/$(basename "$BAM" .bam).peaks.starch"
 
 TMPDIR=${TMPDIR:-$(mktemp -d)}
 
