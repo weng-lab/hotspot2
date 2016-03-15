@@ -2,7 +2,7 @@
 # This is a modified version of the cutcounts script used in stampipes
 set -x -e -o pipefail
 
-if [[ $# -lt 2 ]] ; then
+if [[ $# != 2 ]] ; then
   echo "Usage: $0 in.bam output.starch" >&2
   exit 2
 fi
