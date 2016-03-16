@@ -289,8 +289,6 @@ bool OverlordOfOverlapping::parseAndProcess(void)
   char buf[BUFSIZE], *p;
   map<string,int>::const_iterator it = m_chromSizes.begin();
   Site curSite;
-  SiteData sd;
-  const int windowSize(1 + 2*m_halfWindowSize);
   int curPos(1);
   int linenum(0), fieldnum;
 

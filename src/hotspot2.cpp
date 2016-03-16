@@ -1020,7 +1020,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
       // else proceed to slide this region 
     } // End of if (!m_sliding).  Note that m_sliding is now true.
 
-  int idxMin, idxMax;
+  int idxMin(-1), idxMax(-1);
 
   // If we reach here, we're about to perform a 1bp slide.
   // Either we need to perform several 1bp slide events
@@ -1132,13 +1132,17 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
 		{
 		  set<int>::const_iterator it = m_kvalsWithMinMAxN.end();
 		  it--;
+		  // If there's a k > m_kcutoff whose MAxN is just as low as the MAxN at m_kcutoff,
+		  // or if the MAxN value at m_kcutoff is no longer sufficiently below the MAxN value at m_kTrendReversal,
+		  // then flag m_kcutoff as needing to be updated.
+		  // (Note that m_kTrendReversal is guaranteed to not equal -1 if we reach here.)
 		  if (*it != m_kcutoff ||
 		      m_distn[m_kcutoff].MAxN * m_thresholdRatio >= m_distn[m_kTrendReversal].MAxN)
 		    m_needToUpdate_kcutoff = true;
 		}
 	      else
 		{
-		  if (idxMin <= m_kTrendReversal && m_kTrendReversal <= idxMax)
+		  if (idxMin <= m_kTrendReversal && m_kTrendReversal <= idxMax) // obviously false if m_kTrendReversal == -1
 		    {
 		      // The MAxN value at m_kTrendReversal has decreased,
 		      // while the MAxN value at m_kcutoff has remained the same.
@@ -1420,7 +1424,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
   if (k_outgoing == m_modeXval) // hence k_outgoing != -1, i.e. yes there's an outgoing observation
     m_modeYval--; // we removed 1 observation from this bin
   if (m_distn[k_incoming].numOccs > m_modeYval ||
-      m_distn[k_incoming].numOccs == m_modeYval && k_incoming > m_modeXval)
+      (m_distn[k_incoming].numOccs == m_modeYval && k_incoming > m_modeXval))
     {
       m_modeXval = k_incoming;
       m_modeYval = m_distn[k_incoming].numOccs;
@@ -1558,13 +1562,18 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
 	{
 	  set<int>::const_iterator it = m_kvalsWithMinMAxN.end();
 	  it--;
+	  // If there's a k > m_kcutoff whose MAxN is just as low as the MAxN at m_kcutoff,
+	  // or if the MAxN value at m_kcutoff is no longer sufficiently below the MAxN value at m_kTrendReversal,
+	  // then flag m_kcutoff as needing to be updated.
+	  // (Note that m_kTrendReversal is guaranteed to not equal -1 if we reach here.)
 	  if (*it != m_kcutoff ||
 	      m_distn[m_kcutoff].MAxN * m_thresholdRatio >= m_distn[m_kTrendReversal].MAxN)
 	    m_needToUpdate_kcutoff = true;
 	}
       else
 	{
-	  if (idxMin <= m_kTrendReversal && m_kTrendReversal <= idxMax) // obviously false if -1 == m_kTrendReversal
+	  if (k_outgoing != -1 && // note: idxMin and idxMax were set a few lines above if k_outgoing != -1
+	      idxMin <= m_kTrendReversal && m_kTrendReversal <= idxMax) // obviously false if -1 == m_kTrendReversal
 	    {
 	      // The MAxN value at m_kTrendReversal has decreased,
 	      // while the MAxN value at m_kcutoff has remained the same.
