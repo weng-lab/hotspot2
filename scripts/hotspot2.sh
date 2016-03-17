@@ -43,7 +43,7 @@ BACKGROUND_WINDOW_SIZE=50001 # i.e., +/-25kb around each position
 PVAL_DISTN_SIZE=1000000
 OVERLAPPING_OR_NOT="overlapping"
 FDR_THRESHOLD="0.05"
-SEED=""
+SEED=$RANDOM
 
 while getopts 'hc:e:f:m:n:p:s:w:O' opt ; do
   case "$opt" in
@@ -127,7 +127,7 @@ echo "Running hotspot2..."
 bedops -e 1 "$CUTCOUNTS" "$CHROM_SIZES" \
     | "$COUNTING_EXE" "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" "$OVERLAPPING_OR_NOT" "reportEachUnit" "$CHROM_SIZES" \
     | bedops -n 1 - "$EXCLUDE_THESE_REGIONS" \
-    | "$HOTSPOT_EXE" "$BACKGROUND_WINDOW_SIZE" "$PVAL_DISTN_SIZE" $SEED \
+    | "$HOTSPOT_EXE" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" \
     | starch - \
     > "$OUTFILE"
 

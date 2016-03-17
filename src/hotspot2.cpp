@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <vector>
+#include <getopt.h>
 #include <map>
 #include <set>
 #include <string>
@@ -1739,67 +1740,92 @@ bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize)
 }      
 
 
-int main(int argc, const char* argv[])
+int main(int argc, char* argv[])
 {
-  const char *p;
-  if (2 == argc)
+
+  // Option defaults
+  int background_size = 500001;
+  int num_pvals = 1000000;
+  int seed = time(NULL);
+  float fdr_threshold = 0.10;
+  int print_help = 0;
+  int print_version = 0;
+
+  // Long-opt definitions
+  static struct option long_options[] = {
+    {"background_size", required_argument, 0,  'b' },
+    {"num_pvals", required_argument, 0,  'p' },
+    {"seed", required_argument, 0, 's' },
+    {"fdr_threshold", required_argument, 0, 'f' },
+    {"help", no_argument, &print_help, 1},
+    {"version", no_argument, &print_version, 1},
+    {0,           0,                 0,  0   }
+  };
+
+  // Parse options
+  char c;
+  while ((c = getopt_long(argc, argv, "b:f:p:s:hvV", long_options, NULL)) != -1)
     {
-      p = argv[1];
-      if (*p++ == '-')
-	{
-	  if (*p == '-')
-	    {
-	      p++;
-	      if (*p == 'v' || *p == 'V')
-		{
-		  cout << argv[0] << " version " << hotspot2_VERSION_MAJOR
-		       << '.' << hotspot2_VERSION_MINOR << endl;
-		  return 0;
-		}
-	    }
-	  else
-	    {
-	      if (*p == 'v' || *p == 'V')
-		{
-		  cout << argv[0] << " version " << hotspot2_VERSION_MAJOR
-		       << '.' << hotspot2_VERSION_MINOR << endl;
-		  return 0;
-		}
-	      else
-		{
-		Usage:
-		  cerr << "Usage:  " << argv[0] << " backgroundRegionSize pvalDistnSize [randomNumberSeed]\n"
-		       << "where backgroundRegionSize is in bp, e.g. 50001.\n"
-		       << "pvalDistnSize specifies how many P-values to use to estimate FDR (e.g. 1,000,000).\n"
-		       << "P-values will be discarded and new ones will be used after every pvalDistnSize sites.\n"
-		       << "Anytime fewer than pvalDistnSize P-values are available (e.g., while processing the end of the file),\n"
-		       << "P-values from the previous batch are sampled at random until pvalDistnSize of them are available.\n"
-		       << "A seed (positive integer) for the aforementioned random draws can optionally be provided as a 3rd argument.\n"
-		       << "output (sent to stdout) will be a .bed6 file with P-values in field 5 and FDR in field 6;\n"
-		       << "input (received from stdin) requires IDs in field 4 and counts in field 5.\n"
-		       << "Any fields beyond the 5th in the input will be ignored."
-		       << endl << endl;
-		  return -1;
-		}
-	    }
-	}
-      else
-	goto Usage;
+      switch (c)
+        {
+          case 'b':
+            background_size = atoi(optarg);
+            break;
+          case 'f':
+            fdr_threshold = stof(optarg);
+            break;
+          case 'p':
+            num_pvals = atoi(optarg);
+            break;
+          case 's':
+            seed = atoi(optarg);
+            break;
+          case 'h':
+            print_help = 1;
+            break;
+          case 'v':
+          case 'V':
+            print_version = 1;
+          case 0:
+            // long option received, do nothing
+            break;
+          default:
+            print_help = 1;
+        }
     }
 
-  if (3 != argc && 4 != argc)
-    goto Usage;
+  // Print usage and exit if necessary
+  if (print_help)
+    {
+      cerr << "Usage:  " << argv[0] << " [options] < in.cutcounts.bed > out.pvalues.bed\n"
+        << "\n"
+        << "Options: \n"
+        << "  -b,--background_size=SIZE     The size of the background region (50001)\n"
+        << "  -p,--num_pvals=COUNT          How many p-values to use to estimate FDR (1000000)\n"
+        << "  -f,--fdr_threshold=THRESHOLD  Do not output sites with FDR > THRESHOLD (0.10)\n"
+        << "  -s,--seed=SEED                A seed for the random p-value selection\n"
+        << "  -v, --version                 Print the version information and exit\n"
+        << "  -h, --help                    Display this helpful help\n"
+        << "\n"
+        << " output (sent to stdout) will be a .bed6 file with P-values in field 5 and FDR in field 6\n"
+        << " input (received from stdin) requires IDs in field 4 and counts in field 5.\n"
+        << endl << endl;
+      return -1;
+    }
+
+  if (print_version)
+  {
+    cout << argv[0] << " version " << hotspot2_VERSION_MAJOR
+      << '.' << hotspot2_VERSION_MINOR << endl;
+    return 0;
+  }
+
 
   ios_base::sync_with_stdio(false); // calling this static method in this way turns off checks, speeds up I/O
 
-  int windowSize(atoi(argv[1]));
-  int numPvalsToUseForFDR(atoi(argv[2]));
-  if (4 == argc)
-    srand(atoi(argv[3]));
-  else
-    srand(time(NULL));
+  srand(seed);
 
-  if (!parseAndProcessInput(windowSize, numPvalsToUseForFDR))
+  if (!parseAndProcessInput(num_pvals, background_size))
     return -1;
 
   return 0;
