@@ -18,6 +18,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <sstream>
 #include <limits> // for epsilon()
 #include <utility> // for pair
 #include <list>
@@ -116,6 +117,7 @@ public:
   void computeFDRvals(void);
   double FDR(const double& pval);
   void reset(void);
+  double qval_threshold;
 private:
   PvalueManager();
   void initialize(const int& n);
@@ -296,9 +298,12 @@ void SiteManager::getFDRvalsAndWriteAndFlush(PvalueManager& pvm)
   while (i < m_idxCurSiteNeedingPval)
     {
       m_sites[i].qval = pvm.FDR(m_sites[i].pval);
-      cout << m_sites[i].chrom << '\t' << m_sites[i].endPos - 1 << '\t'
-	   << m_sites[i].endPos << '\t' << m_sites[i].ID << '\t' << m_sites[i].pval
-	   << '\t' << m_sites[i].qval << '\n';
+      if (m_sites[i].qval <= pvm.qval_threshold)
+        {
+          cout << m_sites[i].chrom << '\t' << m_sites[i].endPos - 1 << '\t'
+               << m_sites[i].endPos << '\t' << m_sites[i].ID << '\t' << m_sites[i].pval
+               << '\t' << m_sites[i].qval << '\n';
+        }
       i++;
     }
   // Now move any remaining sites (unprocessed) to the beginning of the m_sites vector.
@@ -1658,8 +1663,8 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
     }
 }
 
-bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize);
-bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize)
+bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const double qval_threshold);
+bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const double qval_threshold)
 {
   const int BUFSIZE(1000);
   char buf[BUFSIZE], *p;
@@ -1671,6 +1676,7 @@ bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize)
   BackgroundRegionManager brm;
   SiteManager sm(pvalDistnSize);
   PvalueManager pvm(pvalDistnSize);
+  pvm.qval_threshold = qval_threshold;
 
   prevSite.chrom = string("xxxNONExxx");
   curSite.hasPval = false;
@@ -1747,7 +1753,7 @@ int main(int argc, char* argv[])
   int background_size = 500001;
   int num_pvals = 1000000;
   int seed = time(NULL);
-  float fdr_threshold = 0.10;
+  double fdr_threshold = 0.10;
   int print_help = 0;
   int print_version = 0;
 
@@ -1764,6 +1770,7 @@ int main(int argc, char* argv[])
 
   // Parse options
   char c;
+  stringstream ss; // Used for parsing doubles (allows scientific notation)
   while ((c = getopt_long(argc, argv, "b:f:p:s:hvV", long_options, NULL)) != -1)
     {
       switch (c)
@@ -1772,7 +1779,8 @@ int main(int argc, char* argv[])
             background_size = atoi(optarg);
             break;
           case 'f':
-            fdr_threshold = stof(optarg);
+            ss << optarg;
+            ss >> fdr_threshold;
             break;
           case 'p':
             num_pvals = atoi(optarg);
@@ -1825,7 +1833,7 @@ int main(int argc, char* argv[])
 
   srand(seed);
 
-  if (!parseAndProcessInput(num_pvals, background_size))
+  if (!parseAndProcessInput(background_size, num_pvals, fdr_threshold))
     return -1;
 
   return 0;
