@@ -1741,6 +1741,8 @@ int main(int argc, char* argv[])
   double fdr_threshold = 0.10;
   int print_help = 0;
   int print_version = 0;
+  string infilename = "";
+  string outfilename = "";
 
   // Long-opt definitions
   static struct option long_options[] = {
@@ -1748,6 +1750,8 @@ int main(int argc, char* argv[])
     { "num_pvals", required_argument, 0, 'p' },
     { "seed", required_argument, 0, 's' },
     { "fdr_threshold", required_argument, 0, 'f' },
+    { "input", required_argument, 0, 'i' },
+    { "output", required_argument, 0, 'o' },
     { "help", no_argument, &print_help, 1 },
     { "version", no_argument, &print_version, 1 },
     { 0, 0, 0, 0 }
@@ -1756,7 +1760,7 @@ int main(int argc, char* argv[])
   // Parse options
   char c;
   stringstream ss; // Used for parsing doubles (allows scientific notation)
-  while ((c = getopt_long(argc, argv, "b:f:p:s:hvV", long_options, NULL)) != -1)
+  while ((c = getopt_long(argc, argv, "b:f:p:s:i:o:hvV", long_options, NULL)) != -1)
     {
       switch (c)
         {
@@ -1772,6 +1776,12 @@ int main(int argc, char* argv[])
           break;
         case 's':
           seed = atoi(optarg);
+          break;
+        case 'i':
+          infilename = optarg;
+          break;
+        case 'o':
+          outfilename = optarg;
           break;
         case 'h':
           print_help = 1;
@@ -1797,6 +1807,8 @@ int main(int argc, char* argv[])
            << "  -p,--num_pvals=COUNT          How many p-values to use to estimate FDR (1000000)\n"
            << "  -f,--fdr_threshold=THRESHOLD  Do not output sites with FDR > THRESHOLD (0.10)\n"
            << "  -s,--seed=SEED                A seed for the random p-value selection\n"
+           << "  -i,--input=FILE               A file to read input from (STDIN)\n"
+           << "  -o,--output=FILE              A file to write output to (STDOUT)\n"
            << "  -v, --version                 Print the version information and exit\n"
            << "  -h, --help                    Display this helpful help\n"
            << "\n"
@@ -1817,6 +1829,23 @@ int main(int argc, char* argv[])
   ios_base::sync_with_stdio(false); // calling this static method in this way turns off checks, speeds up I/O
 
   srand(seed);
+
+  if (!infilename.empty() && infilename != "-")
+    {
+      if (freopen(infilename.c_str(), "r", stdin) == NULL)
+        {
+          cerr << "Error: Couldn't open input file " << infilename << endl;
+          return 1;
+        }
+    }
+  if (!outfilename.empty() && outfilename != "-")
+    {
+      if (freopen(outfilename.c_str(), "w", stdout) == NULL)
+        {
+          cerr << "Error: Couldn't open output file " << outfilename << " for writing" << endl;
+          return 1;
+        }
+    }
 
   if (!parseAndProcessInput(background_size, num_pvals, fdr_threshold))
     return -1;
