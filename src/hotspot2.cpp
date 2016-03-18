@@ -1653,7 +1653,7 @@ bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const
   const int BUFSIZE(1000);
   char buf[BUFSIZE], *p;
   long linenum(0);
-  int fieldnum, curBeg;
+  int fieldnum;
   const int halfWindowSize(windowSize / 2); // integer division
   Site curSite, prevSite;
 
@@ -1665,6 +1665,9 @@ bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const
   prevSite.chrom = string("xxxNONExxx");
   curSite.hasPval = false;
   curSite.pval = -1.;
+  curSite.qval = -1.;
+
+  long start, end;
 
   while (cin.getline(buf, BUFSIZE))
     {
@@ -1681,11 +1684,11 @@ bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const
                << endl;
           return false;
         }
-      curBeg = atol(p);
+      start = atol(p);
       fieldnum++;
       if (!(p = strtok(NULL, "\t")))
         goto MissingField;
-      curSite.endPos = atol(p);
+      end = atol(p);
       fieldnum++;
       if (!(p = strtok(NULL, "\t")))
         goto MissingField;
@@ -1696,34 +1699,30 @@ bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const
       curSite.count = atoi(p);
       // ignore any further fields
 
-      // data integrity check--expect each entry to be 1bp wide
-      if (curSite.endPos != curBeg + 1)
+      for (int siteEnd = start + 1; siteEnd <= end; siteEnd++)
         {
-          cerr << "Error:  Expected field 3 (" << curSite.endPos << ") to be exactly 1 greater than "
-               << "field 2 (" << curBeg << ") on line " << linenum << "." << endl
-               << endl;
-          return false;
-        }
+          curSite.endPos = siteEnd;
 
-      if (curSite.chrom != prevSite.chrom || curSite.endPos > prevSite.endPos + halfWindowSize)
-        {
-          brm.computePandFlush(pvm, sm); // Compute P-values for all unprocessed sites in the window.
-          // Whenever a new batch of pvalDistnSize P-values has been computed,
-          // pvm estimates FDR for them, sm gets FDR from pvm and writes results,
-          // and pvm's counter gets reset to 0.
-          // This method removes all count data from brm.
-          brm.setBounds(curSite.endPos, curSite.endPos + windowSize - 1);
-        }
+          if (curSite.chrom != prevSite.chrom || curSite.endPos > prevSite.endPos + halfWindowSize)
+            {
+              brm.computePandFlush(pvm, sm); // Compute P-values for all unprocessed sites in the window.
+              // Whenever a new batch of pvalDistnSize P-values has been computed,
+              // pvm estimates FDR for them, sm gets FDR from pvm and writes results,
+              // and pvm's counter gets reset to 0.
+              // This method removes all count data from brm.
+              brm.setBounds(curSite.endPos, curSite.endPos + windowSize - 1);
+            }
 
-      if (!brm.isSliding() && curSite.endPos < brm.getRightEdge())
-        {
-          brm.add(curSite);
-          sm.addSite(curSite);
-        }
-      else
-        brm.slideAndCompute(curSite, pvm, sm); // calls sm.addSite(curSite)
+          if (!brm.isSliding() && curSite.endPos < brm.getRightEdge())
+            {
+              brm.add(curSite);
+              sm.addSite(curSite);
+            }
+          else
+            brm.slideAndCompute(curSite, pvm, sm); // calls sm.addSite(curSite)
 
-      prevSite = curSite;
+          prevSite = curSite;
+        }
     }
 
   brm.computePandFlush(pvm, sm); // See explanatory comment above.
