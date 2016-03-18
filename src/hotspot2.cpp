@@ -8,23 +8,23 @@
 // it can be omitted if desired.
 // Any C++ compiler can be used in place of g++.
 //
-#include <iostream>
-#include <fstream>
-#include <cstring>
-#include <cstdlib>
+#include "hotspot2_version.h" // for versioning
+#include <algorithm>
 #include <cmath>
-#include <vector>
+#include <cstdlib>
+#include <cstring>
+#include <ctime> // for seeding the random number generator
+#include <fstream>
 #include <getopt.h>
+#include <iostream>
+#include <limits> // for epsilon()
+#include <list>
 #include <map>
 #include <set>
-#include <string>
 #include <sstream>
-#include <limits> // for epsilon()
+#include <string>
 #include <utility> // for pair
-#include <list>
-#include <ctime> // for seeding the random number generator
-#include <algorithm>
-#include "hotspot2_version.h" // for versioning
+#include <vector>
 
 using namespace std;
 
@@ -44,24 +44,27 @@ double nextProbNegativeBinomial(const int& k, const double& prevVal, const vecto
   if (params.size() < 2)
     {
       cerr << "Error:  nextProbNegativeBinomial() received an incorrect parameter vector; expected m, r."
-           << endl << endl;
+           << endl
+           << endl;
       exit(1);
     }
   if (0 == k)
     {
       cerr << "Error:  nextProbNegativeBinomial() received k = 0, which is invalid (require k > 0)."
-           << endl << endl;
+           << endl
+           << endl;
       exit(1);
     }
-  const double& m(params[0]), r(params[1]), kk(static_cast<double>(k));
+  const double &m(params[0]), r(params[1]), kk(static_cast<double>(k));
   if (r + m == 0)
     {
       cerr << "Error:  nextProbNegativeBinomial() received m = " << m
            << " and r = " << r << ", which is invalid (require r+m > 0)."
-           << endl << endl;
+           << endl
+           << endl;
       exit(1);
     }
-  return prevVal * m * (r + kk - 1.) / ((r + m)*kk);
+  return prevVal * m * (r + kk - 1.) / ((r + m) * kk);
 }
 
 double nextProbBinomial(const int& k, const double& prevVal, const vector<double>& params);
@@ -70,25 +73,28 @@ double nextProbBinomial(const int& k, const double& prevVal, const vector<double
   if (params.size() < 3)
     {
       cerr << "Error:  nextProbBinomial() received an incorrect parameter vector; expected m, v, n."
-           << endl << endl;
+           << endl
+           << endl;
       exit(1);
     }
   if (0 == k)
     {
       cerr << "Error:  nextProbBinomial() received k = 0, which is invalid (require k > 0)."
-           << endl << endl;
+           << endl
+           << endl;
       exit(1);
     }
-  const double& m(params[0]), v(params[1]), nn(params[2]), kk(static_cast<double>(k));
+  const double &m(params[0]), v(params[1]), nn(params[2]), kk(static_cast<double>(k));
   if (kk > nn + 0.5) // really "if kk > nn," but we could have "kk == nn" with nn=15.99999 and kk=16.000001, hence the 0.5
     return 0.;
   if (v < 1.0e-8)
     {
       cerr << "Error:  nextProbBinomial() received v = 0, which is invalid (require variance > 0)."
-           << endl << endl;
+           << endl
+           << endl;
       exit(1);
     }
-  return prevVal * (m-v) * (nn + 1. - kk) / (v*kk);
+  return prevVal * (m - v) * (nn + 1. - kk) / (v * kk);
 }
 
 double nextProbPoisson(const int& k, const double& prevVal, const vector<double>& params);
@@ -97,16 +103,18 @@ double nextProbPoisson(const int& k, const double& prevVal, const vector<double>
   if (params.empty())
     {
       cerr << "Error:  nextProbPoisson() received an incorrect parameter vector; expected m."
-           << endl << endl;
+           << endl
+           << endl;
       exit(1);
     }
   if (0 == k)
     {
       cerr << "Error:  nextProbPoisson() received k = 0, which is invalid (require k > 0)."
-           << endl << endl;
+           << endl
+           << endl;
       exit(1);
     }
-  const double& m(params[0]), kk(static_cast<double>(k));
+  const double &m(params[0]), kk(static_cast<double>(k));
   return prevVal * m / kk;
 }
 
@@ -118,12 +126,13 @@ public:
   double FDR(const double& pval);
   void reset(void);
   double qval_threshold;
+
 private:
   PvalueManager();
   void initialize(const int& n);
   vector<double> m_curObsPvals;
   vector<double> m_prevObsPvals;
-  map<double,double> m_p_to_q;
+  map<double, double> m_p_to_q;
   int m_curNumObsP;
   int m_N;
 };
@@ -173,7 +182,8 @@ void PvalueManager::computeFDRvals(void)
                 {
                   randIdx = rand() % m_N;
                   it = alreadyChosenObs.find(randIdx);
-                } while (it != alreadyChosenObs.end());
+                }
+              while (it != alreadyChosenObs.end());
               m_curObsPvals[m_curNumObsP++] = m_prevObsPvals[randIdx];
               alreadyChosenObs.insert(randIdx);
             }
@@ -187,7 +197,8 @@ void PvalueManager::computeFDRvals(void)
           cerr << "Number of P-values desired to be used for FDR estimation ("
                << m_N << ") is too large;\nonly " << m_curNumObsP
                << " sites were observed in the input data.\n"
-               << "Re-run using a lower target number of P-values." << endl << endl;
+               << "Re-run using a lower target number of P-values." << endl
+               << endl;
           exit(1);
         }
     }
@@ -211,11 +222,10 @@ void PvalueManager::computeFDRvals(void)
 
   while (idxOfLastOccOfThisPval < m_N && m_curObsPvals[idxOfLastOccOfThisPval] < 0.99)
     {
-      while (idxOfLastOccOfThisPval < m_N &&
-             m_curObsPvals[idxOfLastOccOfThisPval] == m_curObsPvals[idxOfFirstOccOfThisPval])
+      while (idxOfLastOccOfThisPval < m_N && m_curObsPvals[idxOfLastOccOfThisPval] == m_curObsPvals[idxOfFirstOccOfThisPval])
         idxOfLastOccOfThisPval++;
       idxOfLastOccOfThisPval--;
-      FDR = m_curObsPvals[idxOfLastOccOfThisPval] * N / static_cast<double>(idxOfLastOccOfThisPval+1);
+      FDR = m_curObsPvals[idxOfLastOccOfThisPval] * N / static_cast<double>(idxOfLastOccOfThisPval + 1);
       if (FDR > 0.99999)
         {
           // Prevent erroneous reporting of "FDR > 1."
@@ -229,7 +239,6 @@ void PvalueManager::computeFDRvals(void)
     }
   if (m_curObsPvals[idxOfLastOccOfThisPval] > 0.99)
     m_p_to_q[1.] = 1.;
-
 }
 
 double PvalueManager::FDR(const double& pval)
@@ -237,15 +246,15 @@ double PvalueManager::FDR(const double& pval)
   if (pval > 0.99)
     return 1.;
 
-  map<double,double>::const_iterator itUpper = m_p_to_q.lower_bound(pval); // lower bound is >= pval
-  map<double,double>::const_iterator itLower = itUpper;
+  map<double, double>::const_iterator itUpper = m_p_to_q.lower_bound(pval); // lower bound is >= pval
+  map<double, double>::const_iterator itLower = itUpper;
   if (m_p_to_q.begin() == itUpper)
     return itUpper->second;
   itLower--;
   // Rounding errors can cause a floating-point number
   // to be stored as a slightly different number, e.g. 0.01999999999 instead of 0.02.
   // Return the FDR for the P-value that's closest to the query P-value.
-  if (fabs(itUpper->first - pval)/pval < fabs(pval - itLower->first)/pval)
+  if (fabs(itUpper->first - pval) / pval < fabs(pval - itLower->first) / pval)
     return itUpper->second;
   return itLower->second;
 }
@@ -256,6 +265,7 @@ public:
   void addSite(const Site& s);
   void setPvalue(const double& pval);
   void getFDRvalsAndWriteAndFlush(PvalueManager& pvm);
+
 private:
   SiteManager(); // require the above constructor to be used
   SiteManager(const SiteManager&); // ditto
@@ -352,6 +362,7 @@ public:
   void add(const Site& s);
   void computePandFlush(PvalueManager& pm, SiteManager& sm);
   void slideAndCompute(const Site& s, PvalueManager& pm, SiteManager& sm);
+
 private:
   void findCutoff(void);
   void computeStats(const int& this_k);
@@ -368,8 +379,8 @@ private:
   int m_MAlength;
   double m_thresholdRatio;
   vector<StatsForCount> m_distn; // distribution of observed counts
-  list<SiteData> m_sitesInRegion_leftHalf;  // endPos values of the sites in the region and whether P has been assigned
-  list<SiteData> m_sitesInRegion_rightHalf;  // endPos values of the sites in the region and whether P has been assigned
+  list<SiteData> m_sitesInRegion_leftHalf; // endPos values of the sites in the region and whether P has been assigned
+  list<SiteData> m_sitesInRegion_rightHalf; // endPos values of the sites in the region and whether P has been assigned
   int m_modeXval;
   int m_modeYval;
   int m_kcutoff;
@@ -381,8 +392,8 @@ private:
   int m_minMAxN;
   int m_prev_k;
 
-  double(*m_pmf)(const int&, const double&, const vector<double>&); // Make these member variables, not local variables,
-  vector<double> m_pmfParams;                                       // so they can be accessed outside computeStats() for debugging.
+  double (*m_pmf)(const int&, const double&, const vector<double>&); // Make these member variables, not local variables,
+  vector<double> m_pmfParams; // so they can be accessed outside computeStats() for debugging.
 };
 
 BackgroundRegionManager::BackgroundRegionManager(void)
@@ -407,12 +418,13 @@ void BackgroundRegionManager::setBounds(const int posL, const int posR)
     {
       cerr << "Error:  BackgroundManager::setBounds() received posL = "
            << posL << " and posR = " << posR << "; must have posL <= posR."
-           << endl << endl;
+           << endl
+           << endl;
       exit(1);
     }
   m_posL = posL;
   m_posR = posR;
-  m_posC = m_posL + (m_posR - m_posL)/2; // integer division
+  m_posC = m_posL + (m_posR - m_posL) / 2; // integer division
 }
 
 void BackgroundRegionManager::add(const Site& s)
@@ -421,7 +433,8 @@ void BackgroundRegionManager::add(const Site& s)
     {
       cerr << "Coding error:  BRM::add(), region [" << m_posL << ", " << m_posR
            << "] received out-of-bounds position " << s.endPos
-           << " (line " << __LINE__ << " of the code)." << endl << endl;
+           << " (line " << __LINE__ << " of the code)." << endl
+           << endl;
       exit(1);
     }
   SiteData sd;
@@ -501,7 +514,7 @@ void BackgroundRegionManager::findCutoff()
               for (int kk = 0; kk <= m_kcutoff; kk++)
                 {
                   m_runningSum_count += m_distn[kk].numOccs * kk;
-                  m_runningSum_countSquared += m_distn[kk].numOccs * kk*kk;
+                  m_runningSum_countSquared += m_distn[kk].numOccs * kk * kk;
                   m_numPtsInNullRegion += m_distn[kk].numOccs;
                 }
             }
@@ -513,7 +526,7 @@ void BackgroundRegionManager::findCutoff()
                   for (int kk = kcutoff_uponEntry + 1; kk <= m_kcutoff; kk++)
                     {
                       m_runningSum_count += m_distn[kk].numOccs * kk;
-                      m_runningSum_countSquared += m_distn[kk].numOccs * kk*kk;
+                      m_runningSum_countSquared += m_distn[kk].numOccs * kk * kk;
                       m_numPtsInNullRegion += m_distn[kk].numOccs;
                     }
                 }
@@ -523,7 +536,7 @@ void BackgroundRegionManager::findCutoff()
                   for (int kk = kcutoff_uponEntry; kk > m_kcutoff; kk--)
                     {
                       m_runningSum_count -= m_distn[kk].numOccs * kk;
-                      m_runningSum_countSquared -= m_distn[kk].numOccs * kk*kk;
+                      m_runningSum_countSquared -= m_distn[kk].numOccs * kk * kk;
                       m_numPtsInNullRegion -= m_distn[kk].numOccs;
                     }
                 }
@@ -534,8 +547,8 @@ void BackgroundRegionManager::findCutoff()
     }
 
   int sum(0), idxL(m_modeXval), idxR(m_modeXval + m_MAlength - 1);
-  int idxC = m_modeXval + m_MAlength/2; // integer division
-  pair<int,int> xyCurMAxN;
+  int idxC = m_modeXval + m_MAlength / 2; // integer division
+  pair<int, int> xyCurMAxN;
   bool useGlobMin(false);
 
   if (!m_sliding)
@@ -548,7 +561,7 @@ void BackgroundRegionManager::findCutoff()
       // and we gain the ability to perform exact tests for equality
       // (int == int instead of double == double).
       idxL = 0;
-      idxC = idxL + m_MAlength/2;
+      idxC = idxL + m_MAlength / 2;
       idxR = idxL + m_MAlength - 1;
       // Compute the initial moving average (times the number of terms).
       for (int i = idxL; i <= idxR; i++)
@@ -638,7 +651,7 @@ void BackgroundRegionManager::findCutoff()
   int k = *(--it);
   m_kcutoff = k;
 
-  m_kTrendStart = m_modeXval + m_MAlength/2; // where the monotonically decreasing trend starts
+  m_kTrendStart = m_modeXval + m_MAlength / 2; // where the monotonically decreasing trend starts
   if (m_minMAxN > 0)
     m_kTrendReversal = xyCurMAxN.first; // where we determined the monotonically decreasing trend to have reversed
   else
@@ -689,8 +702,8 @@ void BackgroundRegionManager::computeStats(const int& this_k)
   double m; // mean
   double v; // variance
   double N(static_cast<double>(m_numPtsInNullRegion));
-  m = static_cast<double>(m_runningSum_count)/N;
-  v = (static_cast<double>(m_runningSum_countSquared) - N*m*m)/(N - 1.);
+  m = static_cast<double>(m_runningSum_count) / N;
+  v = (static_cast<double>(m_runningSum_countSquared) - N * m * m) / (N - 1.);
   m_pmfParams.clear();
 
   // Set up the negative binomial model.
@@ -708,16 +721,16 @@ void BackgroundRegionManager::computeStats(const int& this_k)
       if (m < v)
         {
           // negative binomial
-          double r = m*m/(v-m);
+          double r = m * m / (v - m);
           m_pmfParams.push_back(m);
           m_pmfParams.push_back(r);
-          prob0 = pow(r/(r+m),r);
+          prob0 = pow(r / (r + m), r);
           m_pmf = &nextProbNegativeBinomial;
         }
       else // m > v (this is very unlikely)
         {
           // binomial
-          double n(floor(m*m/(m-v) + 0.5)); // estimate n of the fit from the observed mean and variance
+          double n(floor(m * m / (m - v) + 0.5)); // estimate n of the fit from the observed mean and variance
           double kk_max(static_cast<double>(m_kcutoff)); // BUGBUG if m_kcutoff has 0 observations, do we still want to use it here??!?
           if (kk_max > n + 0.1) // + 0.1 to account for roundoff error, e.g. k=16.00001 and n=15.99999
             {
@@ -727,8 +740,8 @@ void BackgroundRegionManager::computeStats(const int& this_k)
             }
           // Now that we've set n, there's inconsistency among n, m, and v, with respect to the binomial.
           // We choose to keep m as observed, and update the variance parameter v so that consistency is achieved.
-          v = m*(1.-m/n); // Now m*m/(m-v) = the integer n. Example: m=1.8952, v=1.6747, n=16.2893-->16, v-->1.6701.
-          prob0 = pow(v/m,n);
+          v = m * (1. - m / n); // Now m*m/(m-v) = the integer n. Example: m=1.8952, v=1.6747, n=16.2893-->16, v-->1.6701.
+          prob0 = pow(v / m, n);
           m_pmfParams.push_back(m);
           m_pmfParams.push_back(v);
           m_pmfParams.push_back(n);
@@ -815,7 +828,7 @@ void BackgroundRegionManager::computeStats(const int& this_k)
             {
               curPMF = m_pmf(k, curPMF, m_pmfParams); // note: if pmf == binomial and k > binomial's n, 0 is returned
               m_distn[k].pmf = curPMF;
-              m_distn[k].pval = m_distn[k-1].pval - m_distn[k-1].pmf;
+              m_distn[k].pval = m_distn[k - 1].pval - m_distn[k - 1].pmf;
               if (m_distn[k].pval < 0 && k_Pval_goes_negative < 0)
                 k_Pval_goes_negative = k;
             }
@@ -828,7 +841,7 @@ void BackgroundRegionManager::computeStats(const int& this_k)
             {
               curPMF = m_pmf(k, curPMF, m_pmfParams); // note: if pmf == binomial and k > binomial's n, 0 is returned
               m_distn[k].pmf = curPMF;
-              m_distn[k].pval = m_distn[k-1].pval - m_distn[k-1].pmf;
+              m_distn[k].pval = m_distn[k - 1].pval - m_distn[k - 1].pmf;
               if (m_distn[k].pval < 0 && k_Pval_goes_negative < 0)
                 k_Pval_goes_negative = k;
             }
@@ -846,7 +859,7 @@ void BackgroundRegionManager::computeStats(const int& this_k)
               curPMF = m_pmf(++k, curPMF, m_pmfParams); // note: if pmf == binomial and ++k > binomial's n, 0 is returned
               running_pmf_sum_upper_tail += curPMF;
             }
-                // Now compute the P-values, going backward from current value of k.
+          // Now compute the P-values, going backward from current value of k.
           for (k = this_k; k >= k_Pval_goes_negative; k--)
             {
               running_pmf_sum_upper_tail += m_distn[k].pmf;
@@ -881,9 +894,7 @@ void BackgroundRegionManager::computePandFlush(PvalueManager& pm, SiteManager& s
     }
   else // determine whether we need to compute mean, variance, pmfs, P-values
     {
-      if (m_runningSum_countSquared != m_runningSum_countSquared_duringPrevComputation ||
-          m_runningSum_count != m_runningSum_count_duringPrevComputation ||
-          m_numPtsInNullRegion != m_numPtsInNullRegion_duringPrevComputation)
+      if (m_runningSum_countSquared != m_runningSum_countSquared_duringPrevComputation || m_runningSum_count != m_runningSum_count_duringPrevComputation || m_numPtsInNullRegion != m_numPtsInNullRegion_duringPrevComputation)
         needToComputePMFs = true;
       if (m_needToUpdate_kcutoff)
         {
@@ -958,7 +969,8 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
     {
       cerr << "Coding error:  line " << __LINE__ << ", slideAndCompute window = ["
            << m_posL << ", " << m_posR << "],\n"
-           << "erroneously received incoming position = " << s.endPos << "." << endl << endl;
+           << "erroneously received incoming position = " << s.endPos << "." << endl
+           << endl;
       exit(1);
     }
 
@@ -1040,10 +1052,10 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
            << __LINE__ << ", expected m_needToUpdate_kcutoff = false, but it's true.\n"
            << "Region = [" << m_posL << ',' << m_posC << ',' << m_posR
            << "], incoming pos = " << s.endPos << ", kc = " << m_kcutoff
-           << endl << endl;
+           << endl
+           << endl;
       exit(1);
     }
-
 
   while (m_posR + 1 < s.endPos)
     {
@@ -1059,7 +1071,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
           if (k <= m_kcutoff)
             {
               m_runningSum_count -= k;
-              m_runningSum_countSquared -= k*k;
+              m_runningSum_countSquared -= k * k;
               m_numPtsInNullRegion--;
             }
           m_distn[k].numOccs--;
@@ -1074,7 +1086,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
               // 1+ moving averages at the end of m_distn are now undefined.
               // (It's very rare that this will occur.)
               // Mark them as such for bookkeeping's sake.
-              for (int i = m_distn.size() - 1; i > m_distn.size() - m_MAlength/2 && i > -1; i--)
+              for (int i = m_distn.size() - 1; i > m_distn.size() - m_MAlength / 2 && i > -1; i--)
                 m_distn[i].MAxN = -1;
               // If we deleted the bin corresponding to m_kcutoff,
               // update m_kcutoff so that it's within range.
@@ -1092,8 +1104,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
                 {
                   if (i == k)
                     continue;
-                  if (m_distn[i].numOccs > m_distn[k].numOccs ||
-                      (m_distn[i].numOccs == m_distn[k].numOccs && i > k))
+                  if (m_distn[i].numOccs > m_distn[k].numOccs || (m_distn[i].numOccs == m_distn[k].numOccs && i > k))
                     {
                       m_modeXval = i;
                       m_modeYval = m_distn[i].numOccs;
@@ -1101,14 +1112,12 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
                 }
             }
           // Update moving averages (technically, moving sums, not averages, because we're not dividing them by N).
-          idxMin = max(k - m_MAlength/2, m_MAlength/2);
-          idxMax = min(k + m_MAlength/2, static_cast<int>(m_distn.size()) - 1 - m_MAlength/2);
+          idxMin = max(k - m_MAlength / 2, m_MAlength / 2);
+          idxMax = min(k + m_MAlength / 2, static_cast<int>(m_distn.size()) - 1 - m_MAlength / 2);
           for (int i = idxMin; i <= idxMax; i++)
             {
               m_distn[i].MAxN -= 1;
-              if (m_minMAxN != -1 && m_kTrendReversal != -1 &&
-                  m_modeXval == prevModeXval && i < m_kTrendReversal &&
-                  i >= m_modeXval + m_MAlength/2)
+              if (m_minMAxN != -1 && m_kTrendReversal != -1 && m_modeXval == prevModeXval && i < m_kTrendReversal && i >= m_modeXval + m_MAlength / 2)
                 {
                   // The test for a changed m_modeXval is here because if it has changed,
                   // then we're just going to call findCutoff(), which will take care of everything,
@@ -1120,15 +1129,13 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
                       m_kvalsWithMinMAxN.insert(i);
                       newMinMAxN = true;
                     }
-                  else
-                    if (m_distn[i].MAxN == m_minMAxN)
-                      {
-                        m_kvalsWithMinMAxN.insert(i);
-                        newDuplicateMinMAxN = true; // it's possible for newDup... and newMinMAxN to both be true
-                      }
+                  else if (m_distn[i].MAxN == m_minMAxN)
+                    {
+                      m_kvalsWithMinMAxN.insert(i);
+                      newDuplicateMinMAxN = true; // it's possible for newDup... and newMinMAxN to both be true
+                    }
                 }
             }
-
 
           if (m_modeXval != prevModeXval)
             m_needToUpdate_kcutoff = true;
@@ -1142,8 +1149,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
                   // or if the MAxN value at m_kcutoff is no longer sufficiently below the MAxN value at m_kTrendReversal,
                   // then flag m_kcutoff as needing to be updated.
                   // (Note that m_kTrendReversal is guaranteed to not equal -1 if we reach here.)
-                  if (*it != m_kcutoff ||
-                      m_distn[m_kcutoff].MAxN * m_thresholdRatio >= m_distn[m_kTrendReversal].MAxN)
+                  if (*it != m_kcutoff || m_distn[m_kcutoff].MAxN * m_thresholdRatio >= m_distn[m_kTrendReversal].MAxN)
                     m_needToUpdate_kcutoff = true;
                 }
               else
@@ -1191,9 +1197,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
       // Compute/assign P-value for m_posC if necessary.
       if (m_sitesInRegion_rightHalf.front().pos == m_posC)
         {
-          if (m_runningSum_countSquared_duringPrevComputation != m_runningSum_countSquared ||
-              m_runningSum_count_duringPrevComputation != m_runningSum_count ||
-              m_numPtsInNullRegion_duringPrevComputation != m_numPtsInNullRegion)
+          if (m_runningSum_countSquared_duringPrevComputation != m_runningSum_countSquared || m_runningSum_count_duringPrevComputation != m_runningSum_count || m_numPtsInNullRegion_duringPrevComputation != m_numPtsInNullRegion)
             needToComputePMFs = true; // mean and/or variance have changed; won't change if removed k > m_kcutoff
           if (needToComputePMFs)
             {
@@ -1202,11 +1206,11 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
               needToComputePMFs = false;
             }
           else // We've calculated pmfs for this distribution, but it's possible we haven't computed one for a k this large.
-            if (m_prev_k != -1 && m_sitesInRegion_rightHalf.front().count > m_prev_k)
-              {
-                computeStats(m_sitesInRegion_rightHalf.front().count); // sets m_prev_k = m_sitesInRegion_rightHalf.front().count
-                needToComputePMFs = false;
-              }
+              if (m_prev_k != -1 && m_sitesInRegion_rightHalf.front().count > m_prev_k)
+            {
+              computeStats(m_sitesInRegion_rightHalf.front().count); // sets m_prev_k = m_sitesInRegion_rightHalf.front().count
+              needToComputePMFs = false;
+            }
           double pval = m_distn[m_sitesInRegion_rightHalf.front().count].pval;
 
           if (!pvm.addObsP(pval))
@@ -1233,7 +1237,8 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
            << __LINE__ << ", successfully slid through missing data, expected m_needToUpdate_kcutoff = false, but it's true.\n"
            << "Region = [" << m_posL << ',' << m_posC << ',' << m_posR
            << "], incoming pos = " << s.endPos << ", kc = " << m_kcutoff
-           << endl << endl;
+           << endl
+           << endl;
       exit(1);
     }
 
@@ -1241,8 +1246,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
   // equals that of the observation entering the region,
   // the distribution remains unchanged, and no calculations need to be made,
   // unless the necessary calculations were postponed during a previous execution of this method.
-  if (m_sitesInRegion_leftHalf.front().pos == m_posL &&
-      m_sitesInRegion_leftHalf.front().count == s.count)
+  if (m_sitesInRegion_leftHalf.front().pos == m_posL && m_sitesInRegion_leftHalf.front().count == s.count)
     {
       m_sitesInRegion_leftHalf.pop_front();
       // When we have an observation for the central position,
@@ -1259,25 +1263,22 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
       // Assign P-value for m_posC if necessary.
       if (m_sitesInRegion_rightHalf.front().pos == m_posC)
         {
-          if (m_runningSum_countSquared_duringPrevComputation != m_runningSum_countSquared ||
-              m_runningSum_count_duringPrevComputation != m_runningSum_count ||
-              m_numPtsInNullRegion_duringPrevComputation != m_numPtsInNullRegion)
+          if (m_runningSum_countSquared_duringPrevComputation != m_runningSum_countSquared || m_runningSum_count_duringPrevComputation != m_runningSum_count || m_numPtsInNullRegion_duringPrevComputation != m_numPtsInNullRegion)
             needToComputePMFs = true; // Should only be true if we previously pop_fronted k < m_kcutoff without push_backing
-                                      // (due to missing data at the right edge), and additionally,
-                                      // there was missing data at m_posC, so no pmfs were computed.
+          // (due to missing data at the right edge), and additionally,
+          // there was missing data at m_posC, so no pmfs were computed.
           if (needToComputePMFs) // very unlikely to be true here
             {
               m_prev_k = -1; // compute pmfs for k=0 through current k
               computeStats(m_sitesInRegion_rightHalf.front().count); // sets m_prev_k = m_sitesInRegion_rightHalf.front().count
               needToComputePMFs = false;
             }
-          else
-            if (m_prev_k != -1 && m_sitesInRegion_rightHalf.front().count > m_prev_k)
-              {
-                // Only pmfs for k <= m_prev_k have been computed and stored, to save time.
-                // Stil need to compute the pmfs for m_prev_k < k <= this k.
-                computeStats(m_sitesInRegion_rightHalf.front().count); // sets m_prev_k = m_sitesInRegion_rightHalf.front().count
-              }
+          else if (m_prev_k != -1 && m_sitesInRegion_rightHalf.front().count > m_prev_k)
+            {
+              // Only pmfs for k <= m_prev_k have been computed and stored, to save time.
+              // Stil need to compute the pmfs for m_prev_k < k <= this k.
+              computeStats(m_sitesInRegion_rightHalf.front().count); // sets m_prev_k = m_sitesInRegion_rightHalf.front().count
+            }
           double pval = m_distn[m_sitesInRegion_rightHalf.front().count].pval;
           if (!pvm.addObsP(pval))
             {
@@ -1291,7 +1292,6 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
 
       return;
     }
-
 
   // If we reach here,
   // we're adding a site at the right boundary.
@@ -1318,7 +1318,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
       if (k_outgoing <= m_kcutoff)
         {
           m_runningSum_count -= k_outgoing;
-          m_runningSum_countSquared -= k_outgoing*k_outgoing;
+          m_runningSum_countSquared -= k_outgoing * k_outgoing;
           m_numPtsInNullRegion--;
         }
       m_distn[k_outgoing].numOccs--;
@@ -1333,7 +1333,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
           // 1+ moving averages at the end of m_distn are now undefined.
           // (It's very rare that this will occur.)
           // Mark them as such for bookkeeping's sake.
-          for (int i = m_distn.size() - 1; i >= m_distn.size() - m_MAlength/2 && i > -1; i--)
+          for (int i = m_distn.size() - 1; i >= m_distn.size() - m_MAlength / 2 && i > -1; i--)
             m_distn[i].MAxN = -1;
           // If we deleted the bin corresponding to m_kcutoff,
           // update m_kcutoff so that it's within range.
@@ -1355,7 +1355,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
   if (k_incoming <= m_kcutoff)
     {
       m_runningSum_count += k_incoming;
-      m_runningSum_countSquared += k_incoming*k_incoming;
+      m_runningSum_countSquared += k_incoming * k_incoming;
       m_numPtsInNullRegion++;
     }
   if (k_incoming < m_distn.size())
@@ -1363,7 +1363,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
   else
     {
       // Add bins to m_distn.         NOTE:  MAxN values get updated here in this case.
-      int startHere = static_cast<int>(m_distn.size()) - m_MAlength/2;
+      int startHere = static_cast<int>(m_distn.size()) - m_MAlength / 2;
       StatsForCount sc;
       sc.numOccs = 0;
       sc.pmf = sc.pval = -1.;
@@ -1372,10 +1372,10 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
         m_distn.push_back(sc); // create bins for unobserved interior values, e.g., count = 5 but only 0,1,2 have been observed so far
       sc.numOccs = 1;
       m_distn.push_back(sc);
-      if (startHere >= m_MAlength/2)
+      if (startHere >= m_MAlength / 2)
         {
           int sum(0);
-          int idxL(startHere - m_MAlength/2), idxC(startHere), idxR(startHere + m_MAlength/2);
+          int idxL(startHere - m_MAlength / 2), idxC(startHere), idxR(startHere + m_MAlength / 2);
           for (int i = idxL; i <= idxR; i++)
             sum += m_distn[i].numOccs;
           m_distn[idxC].MAxN = sum;
@@ -1391,34 +1391,33 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
               lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
             }
         }
-      else
-        if (m_distn.size() >= m_MAlength)
-          {
-            // m_distn contained very few bins before an observation of k_incoming slid into the current region,
-            // too few to compute any moving averages (times N, MAxN), but k_incoming is large enough
-            // that now, m_distn contains enough bins to compute at least one MAxN, maybe even several
-            // (e.g., m_distn had bins for k=0,1,2, and then k_incoming=6 suddenly slid into the region).
-            // So we need to fill in the rightmost MAxN value and work leftwards from there.
-            int stopHere = max(startHere, m_MAlength/2 - 1);
-            startHere = m_distn.size() - 1 - m_MAlength/2;
-            int sum(0);
-            int idxL(startHere - m_MAlength/2), idxC(startHere), idxR(startHere + m_MAlength/2);
-            for (int i = idxL; i <= idxR; i++)
-              sum += m_distn[i].numOccs;
-            m_distn[idxC].MAxN = sum;
-            lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
-            firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
-            idxC--;
-            idxL--;
-            while (idxC != stopHere)
-              {
-                sum -= m_distn[idxR--].numOccs;
-                sum += m_distn[idxL--].numOccs;
-                m_distn[idxC].MAxN = sum;
-                firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
-                idxC--;
-              }
-          }
+      else if (m_distn.size() >= m_MAlength)
+        {
+          // m_distn contained very few bins before an observation of k_incoming slid into the current region,
+          // too few to compute any moving averages (times N, MAxN), but k_incoming is large enough
+          // that now, m_distn contains enough bins to compute at least one MAxN, maybe even several
+          // (e.g., m_distn had bins for k=0,1,2, and then k_incoming=6 suddenly slid into the region).
+          // So we need to fill in the rightmost MAxN value and work leftwards from there.
+          int stopHere = max(startHere, m_MAlength / 2 - 1);
+          startHere = m_distn.size() - 1 - m_MAlength / 2;
+          int sum(0);
+          int idxL(startHere - m_MAlength / 2), idxC(startHere), idxR(startHere + m_MAlength / 2);
+          for (int i = idxL; i <= idxR; i++)
+            sum += m_distn[i].numOccs;
+          m_distn[idxC].MAxN = sum;
+          lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
+          firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
+          idxC--;
+          idxL--;
+          while (idxC != stopHere)
+            {
+              sum -= m_distn[idxR--].numOccs;
+              sum += m_distn[idxL--].numOccs;
+              m_distn[idxC].MAxN = sum;
+              firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
+              idxC--;
+            }
+        }
     }
   m_posR++;
 
@@ -1429,8 +1428,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
     m_modeYval++; // we added 1 observation to this bin
   if (k_outgoing == m_modeXval) // hence k_outgoing != -1, i.e. yes there's an outgoing observation
     m_modeYval--; // we removed 1 observation from this bin
-  if (m_distn[k_incoming].numOccs > m_modeYval ||
-      (m_distn[k_incoming].numOccs == m_modeYval && k_incoming > m_modeXval))
+  if (m_distn[k_incoming].numOccs > m_modeYval || (m_distn[k_incoming].numOccs == m_modeYval && k_incoming > m_modeXval))
     {
       m_modeXval = k_incoming;
       m_modeYval = m_distn[k_incoming].numOccs;
@@ -1457,8 +1455,8 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
   // to reflect the addition of k_incoming.
   if (m_distn.size() <= origDistnSize) // <=, not ==, because k_outgoing could have caused shrinkage of m_distn.
     {
-      idxMin = max(k_incoming - m_MAlength/2, m_MAlength/2);
-      idxMax = min(k_incoming + m_MAlength/2, static_cast<int>(m_distn.size()) - 1 - m_MAlength/2);
+      idxMin = max(k_incoming - m_MAlength / 2, m_MAlength / 2);
+      idxMax = min(k_incoming + m_MAlength / 2, static_cast<int>(m_distn.size()) - 1 - m_MAlength / 2);
       for (int i = idxMin; i <= idxMax; i++)
         {
           m_distn[i].MAxN += 1;
@@ -1472,9 +1470,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
           //
           // Restrict to the cases in which the mode hasn't changed,
           // because if it changes, we'll call findCutoff() below, which will take care of everything.
-          if (m_minMAxN != -1 && m_kTrendReversal != -1 &&
-              m_modeXval == origModeXval && i < m_kTrendReversal &&
-              i >= m_modeXval + m_MAlength/2)
+          if (m_minMAxN != -1 && m_kTrendReversal != -1 && m_modeXval == origModeXval && i < m_kTrendReversal && i >= m_modeXval + m_MAlength / 2)
             {
               set<int>::iterator it = m_kvalsWithMinMAxN.find(i);
               if (it != m_kvalsWithMinMAxN.end())
@@ -1497,21 +1493,16 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
                       m_needToUpdate_kcutoff = true;
                       m_minMAxN += 1;
                     }
-
                 }
               else
                 {
                   // m_kTrendReversal might have changed
-                  if (i > m_kcutoff && i < m_kTrendReversal &&
-                      m_distn[m_kcutoff].MAxN * m_thresholdRatio < m_distn[i].MAxN)
+                  if (i > m_kcutoff && i < m_kTrendReversal && m_distn[m_kcutoff].MAxN * m_thresholdRatio < m_distn[i].MAxN)
                     m_kTrendReversal = i; // m_kcutoff doesn't change
-                  else
-                    if (i == m_kTrendReversal &&
-                      m_distn[m_kcutoff].MAxN * m_thresholdRatio >= m_distn[i].MAxN)
-                      m_needToUpdate_kcutoff = true;
+                  else if (i == m_kTrendReversal && m_distn[m_kcutoff].MAxN * m_thresholdRatio >= m_distn[i].MAxN)
+                    m_needToUpdate_kcutoff = true;
                 }
             }
-
         }
     }
   else
@@ -1527,18 +1518,14 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
   // Now update the moving averages (times N) for k_outgoing, when present.
   if (k_outgoing != -1)
     {
-      idxMin = max(k_outgoing - m_MAlength/2, m_MAlength/2);
-      idxMax = min(k_outgoing + m_MAlength/2, static_cast<int>(m_distn.size()) - 1 - m_MAlength/2);
+      idxMin = max(k_outgoing - m_MAlength / 2, m_MAlength / 2);
+      idxMax = min(k_outgoing + m_MAlength / 2, static_cast<int>(m_distn.size()) - 1 - m_MAlength / 2);
       for (int i = idxMin; i <= idxMax; i++)
         {
-          if (firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins != -1 &&
-              firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins <= i &&
-              i <= lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins)
+          if (firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins != -1 && firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins <= i && i <= lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins)
             continue; // m_distn[i].MAxN is already up-to-date, and m_needToUpdate_kcutoff == true
           m_distn[i].MAxN -= 1;
-          if (m_minMAxN != -1 && m_kTrendReversal != -1 &&
-              m_modeXval == origModeXval && i < m_kTrendReversal &&
-              i >= m_modeXval + m_MAlength/2)
+          if (m_minMAxN != -1 && m_kTrendReversal != -1 && m_modeXval == origModeXval && i < m_kTrendReversal && i >= m_modeXval + m_MAlength / 2)
             {
               // The test for a changed m_modeXval is here because if it has changed,
               // then we're just going to call findCutoff(), which will take care of everything,
@@ -1550,12 +1537,11 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
                   m_kvalsWithMinMAxN.insert(i);
                   haveNewMinMAxN = true;
                 }
-              else
-                if (m_distn[i].MAxN == m_minMAxN)
-                  {
-                    m_kvalsWithMinMAxN.insert(i);
-                    haveNewDuplicateMinMAxN = true; // it's possible for newDup... and newMinMAxN to both be true
-                  }
+              else if (m_distn[i].MAxN == m_minMAxN)
+                {
+                  m_kvalsWithMinMAxN.insert(i);
+                  haveNewDuplicateMinMAxN = true; // it's possible for newDup... and newMinMAxN to both be true
+                }
             }
         }
     }
@@ -1572,14 +1558,14 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
           // or if the MAxN value at m_kcutoff is no longer sufficiently below the MAxN value at m_kTrendReversal,
           // then flag m_kcutoff as needing to be updated.
           // (Note that m_kTrendReversal is guaranteed to not equal -1 if we reach here.)
-          if (*it != m_kcutoff ||
-              m_distn[m_kcutoff].MAxN * m_thresholdRatio >= m_distn[m_kTrendReversal].MAxN)
+          if (*it != m_kcutoff || m_distn[m_kcutoff].MAxN * m_thresholdRatio >= m_distn[m_kTrendReversal].MAxN)
             m_needToUpdate_kcutoff = true;
         }
       else
         {
           if (k_outgoing != -1 && // note: idxMin and idxMax were set a few lines above if k_outgoing != -1
-              idxMin <= m_kTrendReversal && m_kTrendReversal <= idxMax) // obviously false if -1 == m_kTrendReversal
+              idxMin <= m_kTrendReversal
+              && m_kTrendReversal <= idxMax) // obviously false if -1 == m_kTrendReversal
             {
               // The MAxN value at m_kTrendReversal has decreased,
               // while the MAxN value at m_kcutoff has remained the same.
@@ -1619,9 +1605,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
   // Compute/assign P-value for m_posC if necessary.
   if (m_sitesInRegion_rightHalf.front().pos == m_posC)
     {
-      if (m_runningSum_countSquared_duringPrevComputation != m_runningSum_countSquared ||
-          m_runningSum_count_duringPrevComputation != m_runningSum_count ||
-          m_numPtsInNullRegion_duringPrevComputation != m_numPtsInNullRegion)
+      if (m_runningSum_countSquared_duringPrevComputation != m_runningSum_countSquared || m_runningSum_count_duringPrevComputation != m_runningSum_count || m_numPtsInNullRegion_duringPrevComputation != m_numPtsInNullRegion)
         needToComputePMFs = true; // mean and/or variance have changed; won't change if added and removed k > m_kcutoff
       if (needToComputePMFs)
         {
@@ -1630,11 +1614,11 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
           needToComputePMFs = false;
         }
       else // We've calculated pmfs for this distribution, but it's possible we haven't computed one for a k this large.
-        if (m_prev_k != -1 && m_sitesInRegion_rightHalf.front().count > m_prev_k)
-          {
-            computeStats(m_sitesInRegion_rightHalf.front().count); // sets m_prev_k = m_sitesInRegion_rightHalf.front().count
-            needToComputePMFs = false;
-          }
+          if (m_prev_k != -1 && m_sitesInRegion_rightHalf.front().count > m_prev_k)
+        {
+          computeStats(m_sitesInRegion_rightHalf.front().count); // sets m_prev_k = m_sitesInRegion_rightHalf.front().count
+          needToComputePMFs = false;
+        }
       double pval = m_distn[m_sitesInRegion_rightHalf.front().count].pval;
       if (!pvm.addObsP(pval))
         {
@@ -1670,7 +1654,7 @@ bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const
   char buf[BUFSIZE], *p;
   long linenum(0);
   int fieldnum, curBeg;
-  const int halfWindowSize(windowSize/2); // integer division
+  const int halfWindowSize(windowSize / 2); // integer division
   Site curSite, prevSite;
 
   BackgroundRegionManager brm;
@@ -1682,31 +1666,32 @@ bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const
   curSite.hasPval = false;
   curSite.pval = -1.;
 
-  while (cin.getline(buf,BUFSIZE))
+  while (cin.getline(buf, BUFSIZE))
     {
       linenum++;
       fieldnum = 1;
-      p = strtok(buf,"\t");
+      p = strtok(buf, "\t");
       curSite.chrom = string(p);
       fieldnum++;
-      if (!(p = strtok(NULL,"\t")))
+      if (!(p = strtok(NULL, "\t")))
         {
         MissingField:
           cerr << "Error:  Missing required field " << fieldnum
-               << " on line " << linenum << "." << endl << endl;
+               << " on line " << linenum << "." << endl
+               << endl;
           return false;
         }
       curBeg = atol(p);
       fieldnum++;
-      if (!(p = strtok(NULL,"\t")))
+      if (!(p = strtok(NULL, "\t")))
         goto MissingField;
       curSite.endPos = atol(p);
       fieldnum++;
-      if (!(p = strtok(NULL,"\t")))
+      if (!(p = strtok(NULL, "\t")))
         goto MissingField;
       curSite.ID = string(p);
       fieldnum++;
-      if (!(p = strtok(NULL,"\t")))
+      if (!(p = strtok(NULL, "\t")))
         goto MissingField;
       curSite.count = atoi(p);
       // ignore any further fields
@@ -1715,17 +1700,18 @@ bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const
       if (curSite.endPos != curBeg + 1)
         {
           cerr << "Error:  Expected field 3 (" << curSite.endPos << ") to be exactly 1 greater than "
-               << "field 2 (" << curBeg << ") on line " << linenum << "." << endl << endl;
+               << "field 2 (" << curBeg << ") on line " << linenum << "." << endl
+               << endl;
           return false;
         }
 
       if (curSite.chrom != prevSite.chrom || curSite.endPos > prevSite.endPos + halfWindowSize)
         {
           brm.computePandFlush(pvm, sm); // Compute P-values for all unprocessed sites in the window.
-                                         // Whenever a new batch of pvalDistnSize P-values has been computed,
-                                         // pvm estimates FDR for them, sm gets FDR from pvm and writes results,
-                                         // and pvm's counter gets reset to 0.
-                                         // This method removes all count data from brm.
+          // Whenever a new batch of pvalDistnSize P-values has been computed,
+          // pvm estimates FDR for them, sm gets FDR from pvm and writes results,
+          // and pvm's counter gets reset to 0.
+          // This method removes all count data from brm.
           brm.setBounds(curSite.endPos, curSite.endPos + windowSize - 1);
         }
 
@@ -1745,7 +1731,6 @@ bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const
   return true;
 }
 
-
 int main(int argc, char* argv[])
 {
 
@@ -1759,13 +1744,13 @@ int main(int argc, char* argv[])
 
   // Long-opt definitions
   static struct option long_options[] = {
-    {"background_size", required_argument, 0,  'b' },
-    {"num_pvals", required_argument, 0,  'p' },
-    {"seed", required_argument, 0, 's' },
-    {"fdr_threshold", required_argument, 0, 'f' },
-    {"help", no_argument, &print_help, 1},
-    {"version", no_argument, &print_version, 1},
-    {0,           0,                 0,  0   }
+    { "background_size", required_argument, 0, 'b' },
+    { "num_pvals", required_argument, 0, 'p' },
+    { "seed", required_argument, 0, 's' },
+    { "fdr_threshold", required_argument, 0, 'f' },
+    { "help", no_argument, &print_help, 1 },
+    { "version", no_argument, &print_version, 1 },
+    { 0, 0, 0, 0 }
   };
 
   // Parse options
@@ -1775,30 +1760,30 @@ int main(int argc, char* argv[])
     {
       switch (c)
         {
-          case 'b':
-            background_size = atoi(optarg);
-            break;
-          case 'f':
-            ss << optarg;
-            ss >> fdr_threshold;
-            break;
-          case 'p':
-            num_pvals = atoi(optarg);
-            break;
-          case 's':
-            seed = atoi(optarg);
-            break;
-          case 'h':
-            print_help = 1;
-            break;
-          case 'v':
-          case 'V':
-            print_version = 1;
-          case 0:
-            // long option received, do nothing
-            break;
-          default:
-            print_help = 1;
+        case 'b':
+          background_size = atoi(optarg);
+          break;
+        case 'f':
+          ss << optarg;
+          ss >> fdr_threshold;
+          break;
+        case 'p':
+          num_pvals = atoi(optarg);
+          break;
+        case 's':
+          seed = atoi(optarg);
+          break;
+        case 'h':
+          print_help = 1;
+          break;
+        case 'v':
+        case 'V':
+          print_version = 1;
+        case 0:
+          // long option received, do nothing
+          break;
+        default:
+          print_help = 1;
         }
     }
 
@@ -1806,28 +1791,28 @@ int main(int argc, char* argv[])
   if (print_help)
     {
       cerr << "Usage:  " << argv[0] << " [options] < in.cutcounts.bed > out.pvalues.bed\n"
-        << "\n"
-        << "Options: \n"
-        << "  -b,--background_size=SIZE     The size of the background region (50001)\n"
-        << "  -p,--num_pvals=COUNT          How many p-values to use to estimate FDR (1000000)\n"
-        << "  -f,--fdr_threshold=THRESHOLD  Do not output sites with FDR > THRESHOLD (0.10)\n"
-        << "  -s,--seed=SEED                A seed for the random p-value selection\n"
-        << "  -v, --version                 Print the version information and exit\n"
-        << "  -h, --help                    Display this helpful help\n"
-        << "\n"
-        << " output (sent to stdout) will be a .bed6 file with P-values in field 5 and FDR in field 6\n"
-        << " input (received from stdin) requires IDs in field 4 and counts in field 5.\n"
-        << endl << endl;
+           << "\n"
+           << "Options: \n"
+           << "  -b,--background_size=SIZE     The size of the background region (50001)\n"
+           << "  -p,--num_pvals=COUNT          How many p-values to use to estimate FDR (1000000)\n"
+           << "  -f,--fdr_threshold=THRESHOLD  Do not output sites with FDR > THRESHOLD (0.10)\n"
+           << "  -s,--seed=SEED                A seed for the random p-value selection\n"
+           << "  -v, --version                 Print the version information and exit\n"
+           << "  -h, --help                    Display this helpful help\n"
+           << "\n"
+           << " output (sent to stdout) will be a .bed6 file with P-values in field 5 and FDR in field 6\n"
+           << " input (received from stdin) requires IDs in field 4 and counts in field 5.\n"
+           << endl
+           << endl;
       return -1;
     }
 
   if (print_version)
-  {
-    cout << argv[0] << " version " << hotspot2_VERSION_MAJOR
-      << '.' << hotspot2_VERSION_MINOR << endl;
-    return 0;
-  }
-
+    {
+      cout << argv[0] << " version " << hotspot2_VERSION_MAJOR
+           << '.' << hotspot2_VERSION_MINOR << endl;
+      return 0;
+    }
 
   ios_base::sync_with_stdio(false); // calling this static method in this way turns off checks, speeds up I/O
 

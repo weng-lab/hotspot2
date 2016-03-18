@@ -8,14 +8,14 @@
 // it can be omitted if desired.
 // Any C++ compiler can be used in place of g++.
 //
-#include <iostream>
-#include <fstream>
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <fstream>
+#include <iostream>
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
-#include <cctype>
 
 using namespace std;
 
@@ -27,30 +27,30 @@ struct Site {
   int numCuts;
 };
 
-
-bool reportNonoverlappingTallies(const char* exeName, const map<string,int>& chromSizes, const int& halfWindowSize, const bool& reportSomethingForEachWin);
-bool reportNonoverlappingTallies(const char* exeName, const map<string,int>& chromSizes, const int& halfWindowSize, const bool& reportSomethingForEachWin)
+bool reportNonoverlappingTallies(const char* exeName, const map<string, int>& chromSizes, const int& halfWindowSize, const bool& reportSomethingForEachWin);
+bool reportNonoverlappingTallies(const char* exeName, const map<string, int>& chromSizes, const int& halfWindowSize, const bool& reportSomethingForEachWin)
 {
   const int BUFSIZE(100);
   char buf[BUFSIZE], *p;
-  map<string,int>::const_iterator it = chromSizes.begin();
+  map<string, int>::const_iterator it = chromSizes.begin();
   Site prevSite, curSite;
-  const int windowSize(1 + 2*halfWindowSize);
+  const int windowSize(1 + 2 * halfWindowSize);
   int posL(1), posC(1 + halfWindowSize), posR(windowSize);
   int sum(0);
   int linenum(0), fieldnum;
 
   prevSite.chr = string("xxxNONExxx");
 
-  while (cin.getline(buf,BUFSIZE))
+  while (cin.getline(buf, BUFSIZE))
     {
       linenum++;
       fieldnum = 1;
-      if (!(p = strtok(buf,"\t")))
+      if (!(p = strtok(buf, "\t")))
         {
         MissingField:
           cerr << "Error:  Missing required field " << fieldnum
-               << " on line " << linenum << " of the input file." << endl << endl;
+               << " on line " << linenum << " of the input file." << endl
+               << endl;
           return false;
         }
       curSite.chr = string(p);
@@ -64,19 +64,19 @@ bool reportNonoverlappingTallies(const char* exeName, const map<string,int>& chr
             }
         }
       fieldnum++;
-      if (!(p = strtok(NULL,"\t")))
+      if (!(p = strtok(NULL, "\t")))
         goto MissingField;
       curSite.beg = atol(p);
       fieldnum++;
-      if (!(p = strtok(NULL,"\t")))
+      if (!(p = strtok(NULL, "\t")))
         goto MissingField;
       curSite.end = atol(p);
       fieldnum++;
-      if (!(p = strtok(NULL,"\t")))
+      if (!(p = strtok(NULL, "\t")))
         goto MissingField;
       curSite.id = string(p);
       fieldnum++;
-      if (!(p = strtok(NULL,"\t")))
+      if (!(p = strtok(NULL, "\t")))
         goto MissingField;
       curSite.numCuts = atoi(p);
       // Ignore any fields beyond the fifth.
@@ -98,18 +98,17 @@ bool reportNonoverlappingTallies(const char* exeName, const map<string,int>& chr
           if (linenum > 1)
             {
               if (chromSizes.empty())
-                cout << prevSite.chr << '\t' << posC-1 << '\t' << posC << "\ti\t" << sum << endl; // assume posC is valid
+                cout << prevSite.chr << '\t' << posC - 1 << '\t' << posC << "\ti\t" << sum << endl; // assume posC is valid
               else
                 {
                   if (posC <= it->second)
-                    cout << prevSite.chr << '\t' << posC-1 << '\t' << posC << "\ti\t" << sum << endl;
+                    cout << prevSite.chr << '\t' << posC - 1 << '\t' << posC << "\ti\t" << sum << endl;
                   else // Report the last position in the chromosome as the "center of the window."
-                    cout << prevSite.chr << '\t' << it->second -1 << '\t' << it->second << "\ti\t" << sum << endl;
+                    cout << prevSite.chr << '\t' << it->second - 1 << '\t' << it->second << "\ti\t" << sum << endl;
                 }
             }
-          else
-            if (!chromSizes.empty())
-              it = chromSizes.find(curSite.chr); // guaranteed to succeed if we reach here
+          else if (!chromSizes.empty())
+            it = chromSizes.find(curSite.chr); // guaranteed to succeed if we reach here
           if (reportSomethingForEachWin)
             {
               // Slide the current window rightward, by one full window width at a time (non-overlapping),
@@ -125,7 +124,7 @@ bool reportNonoverlappingTallies(const char* exeName, const map<string,int>& chr
                           posC += windowSize;
                           while (posC <= it->second)
                             {
-                              cout << prevSite.chr << '\t' << posC-1 << '\t' << posC << "\ti\t0" << endl;
+                              cout << prevSite.chr << '\t' << posC - 1 << '\t' << posC << "\ti\t0" << endl;
                               posC += windowSize;
                             }
                           it = chromSizes.find(curSite.chr); // guaranteed to succeed if we reach here
@@ -135,7 +134,7 @@ bool reportNonoverlappingTallies(const char* exeName, const map<string,int>& chr
                       posR = windowSize;
                     }
                   if (posR < curSite.end)
-                    cout << curSite.chr << '\t' << posC-1 << '\t' << posC
+                    cout << curSite.chr << '\t' << posC - 1 << '\t' << posC
                          << "\ti\t0" << endl;
                 }
               // (If there's no data for a whole chromosome, don't bother writing a chromosome's worth of zeroes.)
@@ -145,7 +144,7 @@ bool reportNonoverlappingTallies(const char* exeName, const map<string,int>& chr
                   posC += windowSize;
                   posR += windowSize;
                   if (posR < curSite.end)
-                    cout << curSite.chr << '\t' << posC-1 << '\t' << posC
+                    cout << curSite.chr << '\t' << posC - 1 << '\t' << posC
                          << "\ti\t0" << endl;
                   else
                     break;
@@ -169,19 +168,19 @@ bool reportNonoverlappingTallies(const char* exeName, const map<string,int>& chr
 
   // Report the tally corresponding to the end of the file.
   if (chromSizes.empty())
-    cout << prevSite.chr << '\t' << posC-1 << '\t' << posC << "\ti\t" << sum << endl; // assume posC is valid
+    cout << prevSite.chr << '\t' << posC - 1 << '\t' << posC << "\ti\t" << sum << endl; // assume posC is valid
   else
     {
       if (posC <= it->second)
         {
-          cout << prevSite.chr << '\t' << posC-1 << '\t' << posC << "\ti\t" << sum << endl;
+          cout << prevSite.chr << '\t' << posC - 1 << '\t' << posC << "\ti\t" << sum << endl;
           if (reportSomethingForEachWin)
             {
               // Write zeroes until the end of the chromosome is reached.
               posC += windowSize;
               while (posC <= it->second)
                 {
-                  cout << prevSite.chr << '\t' << posC-1 << '\t' << posC << "\ti\t0" << endl;
+                  cout << prevSite.chr << '\t' << posC - 1 << '\t' << posC << "\ti\t0" << endl;
                   posC += windowSize;
                 }
             }
@@ -201,8 +200,9 @@ struct SiteData {
 
 class OverlordOfOverlapping {
 public:
-  void initialize(const int& halfWindowSize, const bool& everyBp, const map<string,int>& chromSizes, const char* pExeName);
+  void initialize(const int& halfWindowSize, const bool& everyBp, const map<string, int>& chromSizes, const char* pExeName);
   bool parseAndProcess(void);
+
 private:
   void processStoredSites(void);
   vector<SiteData> m_storedSites;
@@ -210,12 +210,12 @@ private:
   int m_idxInsertHere;
   int m_halfWindowSize;
   bool m_reportSomethingForEveryBp;
-  map<string,int> m_chromSizes;
+  map<string, int> m_chromSizes;
   int m_sizeOfCurChrom;
   const char* m_exeName;
 };
 
-void OverlordOfOverlapping::initialize(const int& halfWindowSize, const bool& everyBp, const map<string,int>& chromSizes, const char* pExeName)
+void OverlordOfOverlapping::initialize(const int& halfWindowSize, const bool& everyBp, const map<string, int>& chromSizes, const char* pExeName)
 {
   const int VECSIZE(10000000);
   m_halfWindowSize = halfWindowSize;
@@ -231,7 +231,7 @@ void OverlordOfOverlapping::initialize(const int& halfWindowSize, const bool& ev
 void OverlordOfOverlapping::processStoredSites(void)
 {
   int idxL(0), idxC(m_halfWindowSize), idxR;
-  const int windowSize(2*m_halfWindowSize + 1);
+  const int windowSize(2 * m_halfWindowSize + 1);
   const bool endOfChrom = m_idxInsertHere < m_storedSites.size() ? true : false;
   int sum(0);
 
@@ -241,7 +241,7 @@ void OverlordOfOverlapping::processStoredSites(void)
   if (m_idxInsertHere != 0)
     {
       if (!m_storedSites[idxC].isMissingData || m_reportSomethingForEveryBp) // guaranteed idxC < idxInsertHere
-        cout << m_chrom << '\t' << m_storedSites[idxC-1].endPos << '\t' << m_storedSites[idxC].endPos
+        cout << m_chrom << '\t' << m_storedSites[idxC - 1].endPos << '\t' << m_storedSites[idxC].endPos
              << "\ti\t" << sum << endl;
     }
 
@@ -250,7 +250,7 @@ void OverlordOfOverlapping::processStoredSites(void)
       sum -= m_storedSites[idxL++].numCuts;
       sum += m_storedSites[idxR++].numCuts;
       if (!m_storedSites[++idxC].isMissingData || m_reportSomethingForEveryBp)
-        cout << m_chrom << '\t' << m_storedSites[idxC-1].endPos << '\t' << m_storedSites[idxC].endPos
+        cout << m_chrom << '\t' << m_storedSites[idxC - 1].endPos << '\t' << m_storedSites[idxC].endPos
              << "\ti\t" << sum << endl;
     }
 
@@ -287,20 +287,21 @@ bool OverlordOfOverlapping::parseAndProcess(void)
 {
   const int BUFSIZE(100);
   char buf[BUFSIZE], *p;
-  map<string,int>::const_iterator it = m_chromSizes.begin();
+  map<string, int>::const_iterator it = m_chromSizes.begin();
   Site curSite;
   int curPos(1);
   int linenum(0), fieldnum;
 
-  while (cin.getline(buf,BUFSIZE))
+  while (cin.getline(buf, BUFSIZE))
     {
       linenum++;
       fieldnum = 1;
-      if (!(p = strtok(buf,"\t")))
+      if (!(p = strtok(buf, "\t")))
         {
         MissingField:
           cerr << "Error:  " << m_exeName << " encountered a missing required field " << fieldnum
-               << " on line " << linenum << " of the input file." << endl << endl;
+               << " on line " << linenum << " of the input file." << endl
+               << endl;
           return false;
         }
       curSite.chr = string(p);
@@ -325,19 +326,19 @@ bool OverlordOfOverlapping::parseAndProcess(void)
           curPos = 1;
         }
       fieldnum++;
-      if (!(p = strtok(NULL,"\t")))
+      if (!(p = strtok(NULL, "\t")))
         goto MissingField;
       curSite.beg = atol(p);
       fieldnum++;
-      if (!(p = strtok(NULL,"\t")))
+      if (!(p = strtok(NULL, "\t")))
         goto MissingField;
       curSite.end = atol(p);
       fieldnum++;
-      if (!(p = strtok(NULL,"\t")))
+      if (!(p = strtok(NULL, "\t")))
         goto MissingField;
       curSite.id = string(p);
       fieldnum++;
-      if (!(p = strtok(NULL,"\t")))
+      if (!(p = strtok(NULL, "\t")))
         goto MissingField;
       curSite.numCuts = atoi(p);
       // Ignore any fields beyond the fifth.
@@ -373,19 +374,19 @@ bool OverlordOfOverlapping::parseAndProcess(void)
   return true;
 }
 
-bool loadChromSizes(ifstream& infile, map<string,int>& chromSizes, const char* exeName);
-bool loadChromSizes(ifstream& infile, map<string,int>& chromSizes, const char* exeName)
+bool loadChromSizes(ifstream& infile, map<string, int>& chromSizes, const char* exeName);
+bool loadChromSizes(ifstream& infile, map<string, int>& chromSizes, const char* exeName)
 {
   const int BUFSIZE(100);
   char buf[BUFSIZE], *p;
   string chrom;
   int linenum(0), fieldnum;
 
-  while (infile.getline(buf,BUFSIZE))
+  while (infile.getline(buf, BUFSIZE))
     {
       linenum++;
       fieldnum = 1;
-      if (!(p = strtok(buf,"\t")))
+      if (!(p = strtok(buf, "\t")))
         {
         MissingData:
           cerr << "Error:  " << exeName << " failed to find required field " << fieldnum
@@ -394,7 +395,7 @@ bool loadChromSizes(ifstream& infile, map<string,int>& chromSizes, const char* e
         }
       chrom = string(p);
       fieldnum++;
-      if (!(p = strtok(NULL,"\t")))
+      if (!(p = strtok(NULL, "\t")))
         goto MissingData;
       chromSizes[chrom] = atoi(p);
     }
@@ -413,7 +414,8 @@ int main(int argc, const char* argv[])
            << "\t* the word \"overlapping\" requests overlapping windows sliding 1bp at a time, \"nonoverlapping\" requests non-overlapping windows\n"
            << "\t* (optional) the string \"reportEachUnit\" reports a tally for every non-overlapping window or for every central bp\n"
            << "\t* (optional) a file of chromosome sizes can be provided for error-checking and guidance at the ends of chromosomes"
-           << endl << endl;
+           << endl
+           << endl;
       return -1;
     }
 
@@ -422,7 +424,7 @@ int main(int argc, const char* argv[])
   int halfWinSize(atoi(argv[1]));
   bool overlappingWindowsSliding1bp;
   string thisArgString;
-  const char *p = argv[2];
+  const char* p = argv[2];
   while (*p)
     thisArgString += tolower(*p++);
   if (string("overlapping") == thisArgString)
@@ -486,7 +488,7 @@ int main(int argc, const char* argv[])
         }
     }
 
-  map<string,int> chrSizes;
+  map<string, int> chrSizes;
   if (ifsChromSizes)
     {
       if (!loadChromSizes(ifsChromSizes, chrSizes, argv[0]))
