@@ -27,6 +27,22 @@ struct Site {
   int numCuts;
 };
 
+
+string _g_chr;
+int _g_start, _g_end, _g_count;
+void outputSite(const string chr, const int end, const int cutcount){
+  //cout << chr << "\t" << end-1 << "\t" << end << "\ti\t" << cutcount << "\n";
+  if (chr != _g_chr || end != _g_end +1 || cutcount != _g_count ) {
+    if ( _g_chr != "") {
+      cout <<_g_chr << "\t" << _g_start <<"\t"<< _g_end << "\ti\t" << _g_count << "\n";
+    }
+    _g_chr = chr;
+    _g_start = end - 1;
+    _g_count = cutcount;
+  }
+  _g_end = end;
+}
+
 bool reportNonoverlappingTallies(const char* exeName, const map<string, int>& chromSizes, const int& halfWindowSize, const bool& reportSomethingForEachWin);
 bool reportNonoverlappingTallies(const char* exeName, const map<string, int>& chromSizes, const int& halfWindowSize, const bool& reportSomethingForEachWin)
 {
@@ -98,13 +114,13 @@ bool reportNonoverlappingTallies(const char* exeName, const map<string, int>& ch
           if (linenum > 1)
             {
               if (chromSizes.empty())
-                cout << prevSite.chr << '\t' << posC - 1 << '\t' << posC << "\ti\t" << sum << endl; // assume posC is valid
+                outputSite(prevSite.chr, posC, sum);
               else
                 {
                   if (posC <= it->second)
-                    cout << prevSite.chr << '\t' << posC - 1 << '\t' << posC << "\ti\t" << sum << endl;
+                    outputSite(prevSite.chr, posC, sum);
                   else // Report the last position in the chromosome as the "center of the window."
-                    cout << prevSite.chr << '\t' << it->second - 1 << '\t' << it->second << "\ti\t" << sum << endl;
+                    outputSite(prevSite.chr, it->second, sum);
                 }
             }
           else if (!chromSizes.empty())
@@ -124,7 +140,7 @@ bool reportNonoverlappingTallies(const char* exeName, const map<string, int>& ch
                           posC += windowSize;
                           while (posC <= it->second)
                             {
-                              cout << prevSite.chr << '\t' << posC - 1 << '\t' << posC << "\ti\t0" << endl;
+                              outputSite(prevSite.chr, posC, 0);
                               posC += windowSize;
                             }
                           it = chromSizes.find(curSite.chr); // guaranteed to succeed if we reach here
@@ -134,8 +150,7 @@ bool reportNonoverlappingTallies(const char* exeName, const map<string, int>& ch
                       posR = windowSize;
                     }
                   if (posR < curSite.end)
-                    cout << curSite.chr << '\t' << posC - 1 << '\t' << posC
-                         << "\ti\t0" << endl;
+                    outputSite(curSite.chr, posC, 0);
                 }
               // (If there's no data for a whole chromosome, don't bother writing a chromosome's worth of zeroes.)
               while (true)
@@ -144,8 +159,7 @@ bool reportNonoverlappingTallies(const char* exeName, const map<string, int>& ch
                   posC += windowSize;
                   posR += windowSize;
                   if (posR < curSite.end)
-                    cout << curSite.chr << '\t' << posC - 1 << '\t' << posC
-                         << "\ti\t0" << endl;
+                    outputSite(curSite.chr, posC, 0);
                   else
                     break;
                 }
@@ -168,25 +182,25 @@ bool reportNonoverlappingTallies(const char* exeName, const map<string, int>& ch
 
   // Report the tally corresponding to the end of the file.
   if (chromSizes.empty())
-    cout << prevSite.chr << '\t' << posC - 1 << '\t' << posC << "\ti\t" << sum << endl; // assume posC is valid
+    outputSite(prevSite.chr, posC, sum);
   else
     {
       if (posC <= it->second)
         {
-          cout << prevSite.chr << '\t' << posC - 1 << '\t' << posC << "\ti\t" << sum << endl;
+          outputSite(prevSite.chr, posC, sum);
           if (reportSomethingForEachWin)
             {
               // Write zeroes until the end of the chromosome is reached.
               posC += windowSize;
               while (posC <= it->second)
                 {
-                  cout << prevSite.chr << '\t' << posC - 1 << '\t' << posC << "\ti\t0" << endl;
+                  outputSite(prevSite.chr, posC, 0);
                   posC += windowSize;
                 }
             }
         }
       else
-        cout << prevSite.chr << '\t' << it->second - 1 << '\t' << it->second << "\ti\t" << sum << endl;
+        outputSite(prevSite.chr, it->second, sum);
     }
 
   return true;
@@ -241,8 +255,7 @@ void OverlordOfOverlapping::processStoredSites(void)
   if (m_idxInsertHere != 0)
     {
       if (!m_storedSites[idxC].isMissingData || m_reportSomethingForEveryBp) // guaranteed idxC < idxInsertHere
-        cout << m_chrom << '\t' << m_storedSites[idxC - 1].endPos << '\t' << m_storedSites[idxC].endPos
-             << "\ti\t" << sum << endl;
+        outputSite(m_chrom, m_storedSites[idxC].endPos, sum);
     }
 
   while (idxR < m_idxInsertHere)
@@ -250,8 +263,7 @@ void OverlordOfOverlapping::processStoredSites(void)
       sum -= m_storedSites[idxL++].numCuts;
       sum += m_storedSites[idxR++].numCuts;
       if (!m_storedSites[++idxC].isMissingData || m_reportSomethingForEveryBp)
-        cout << m_chrom << '\t' << m_storedSites[idxC - 1].endPos << '\t' << m_storedSites[idxC].endPos
-             << "\ti\t" << sum << endl;
+        outputSite(m_chrom, m_storedSites[idxC].endPos, sum);
     }
 
   if (endOfChrom)
@@ -265,8 +277,7 @@ void OverlordOfOverlapping::processStoredSites(void)
                 sum -= m_storedSites[idxL++].numCuts;
               curPosR++;
               curPosC++;
-              cout << m_chrom << '\t' << curPosC - 1 << '\t' << curPosC
-                   << "\ti\t" << sum << endl;
+              outputSite(m_chrom, curPosC, sum);
             }
         }
       m_idxInsertHere = 0;
@@ -510,5 +521,7 @@ int main(int argc, const char* argv[])
         return -1;
     }
 
+  // Force flushing
+  outputSite("", 0, 0);
   return 0;
 }

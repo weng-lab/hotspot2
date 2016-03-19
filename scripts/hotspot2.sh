@@ -106,6 +106,7 @@ fi
 WAVELETS_EXE=$(which modwt)
 CUTCOUNT_EXE="$(dirname "$0")/cutcounts.bash"
 DENSPK_EXE="$(dirname "$0")/density-peaks.bash"
+EXCLUDE_EXE="$(dirname "$0")/bed_exclude.py"
 COUNTING_EXE=tallyCountsInSmallWindows
 HOTSPOT_EXE=hotspot2
 
@@ -117,6 +118,7 @@ OUTFILE="$OUTDIR/$(basename "$BAM" .bam).allcalls.starch"
 DENSITY_OUTFILE="$OUTDIR/$(basename "$BAM" .bam).density.starch"
 PEAKS_OUTFILE="$OUTDIR/$(basename "$BAM" .bam).peaks.starch"
 
+
 TMPDIR=${TMPDIR:-$(mktemp -d)}
 
 echo "Cutting..."
@@ -126,7 +128,7 @@ bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS"
 echo "Running hotspot2..."
 bedops -e 1 "$CUTCOUNTS" "$CHROM_SIZES" \
     | "$COUNTING_EXE" "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" "$OVERLAPPING_OR_NOT" "reportEachUnit" "$CHROM_SIZES" \
-    | bedops -n 1 - "$EXCLUDE_THESE_REGIONS" \
+    | python "$EXCLUDE_EXE" "$EXCLUDE_THESE_REGIONS" \
     | "$HOTSPOT_EXE" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" \
     | starch - \
     > "$OUTFILE"
