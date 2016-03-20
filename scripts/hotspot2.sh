@@ -129,7 +129,7 @@ echo "Running hotspot2..."
 bedops -e 1 "$CUTCOUNTS" "$CHROM_SIZES" \
     | "$COUNTING_EXE" "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" "$OVERLAPPING_OR_NOT" "reportEachUnit" "$CHROM_SIZES" \
     | python "$EXCLUDE_EXE" "$EXCLUDE_THESE_REGIONS" \
-    | "$HOTSPOT_EXE" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" \
+    | "$HOTSPOT_EXE" --fdr_threshold "$FDR_THRESHOLD" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" \
     | starch - \
     > "$OUTFILE"
 

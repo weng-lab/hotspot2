@@ -120,16 +120,20 @@ double nextProbPoisson(const int& k, const double& prevVal, const vector<double>
 
 class PvalueManager {
 public:
-  PvalueManager(const int& n) { initialize(n); }
+  PvalueManager(const int& n, double fdr_threshold)
+      : m_fdrThold(fdr_threshold)
+  {
+    initialize(n);
+  }
   bool addObsP(const double& pval);
   void computeFDRvals(void);
   double FDR(const double& pval);
   void reset(void);
-  double qval_threshold;
-
+  inline double thresholdFDR() const { return m_fdrThold; }
 private:
   PvalueManager();
   void initialize(const int& n);
+  const double m_fdrThold;
   vector<double> m_curObsPvals;
   vector<double> m_prevObsPvals;
   map<double, double> m_p_to_q;
@@ -308,7 +312,7 @@ void SiteManager::getFDRvalsAndWriteAndFlush(PvalueManager& pvm)
   while (i < m_idxCurSiteNeedingPval)
     {
       m_sites[i].qval = pvm.FDR(m_sites[i].pval);
-      if (m_sites[i].qval <= pvm.qval_threshold)
+      if (m_sites[i].qval <= pvm.thresholdFDR())
         {
           cout << m_sites[i].chrom << '\t' << m_sites[i].endPos - 1 << '\t'
                << m_sites[i].endPos << '\t' << m_sites[i].ID << '\t' << m_sites[i].pval
@@ -1647,8 +1651,8 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
     }
 }
 
-bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const double qval_threshold);
-bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const double qval_threshold)
+bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const double fdr_threshold);
+bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const double fdr_threshold)
 {
   const int BUFSIZE(1000);
   char buf[BUFSIZE], *p;
@@ -1659,8 +1663,7 @@ bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const
 
   BackgroundRegionManager brm;
   SiteManager sm(pvalDistnSize);
-  PvalueManager pvm(pvalDistnSize);
-  pvm.qval_threshold = qval_threshold;
+  PvalueManager pvm(pvalDistnSize, fdr_threshold);
 
   prevSite.chrom = string("xxxNONExxx");
   curSite.hasPval = false;
@@ -1737,7 +1740,7 @@ int main(int argc, char* argv[])
   int background_size = 500001;
   int num_pvals = 1000000;
   int seed = time(NULL);
-  double fdr_threshold = 0.10;
+  double fdr_threshold = 1.00;
   int print_help = 0;
   int print_version = 0;
   string infilename = "";
@@ -1804,7 +1807,7 @@ int main(int argc, char* argv[])
            << "Options: \n"
            << "  -b,--background_size=SIZE     The size of the background region (50001)\n"
            << "  -p,--num_pvals=COUNT          How many p-values to use to estimate FDR (1000000)\n"
-           << "  -f,--fdr_threshold=THRESHOLD  Do not output sites with FDR > THRESHOLD (0.10)\n"
+           << "  -f,--fdr_threshold=THRESHOLD  Do not output sites with FDR > THRESHOLD (1.00)\n"
            << "  -s,--seed=SEED                A seed for the random p-value selection\n"
            << "  -i,--input=FILE               A file to read input from (STDIN)\n"
            << "  -o,--output=FILE              A file to write output to (STDOUT)\n"
