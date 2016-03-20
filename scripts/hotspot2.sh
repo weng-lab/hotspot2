@@ -100,21 +100,21 @@ fi
 BAM=$1
 OUTDIR=$2
 
-echo "checking system for modwt, BEDOPS, samtools, ..."
-if [ $(which modwt &>/dev/null || echo "$?") ] ; then
+echo "checking system for modwt, BEDOPS, samtools..."
+if ! which modwt &>/dev/null; then
   echo "Could not find modwt!"
   exit -1
-elif [ $(which bedmap &>/dev/null || echo "$?") ] ; then
-  echo "Did not find BEDOPS (bedmap)!"
+elif ! which bedmap &>/dev/null; then
+  echo "Could not find BEDOPS (bedmap)!"
   exit -1
-elif [ $(which samtools &>/dev/null || echo "$?") ] ; then
-  echo "Did not find samtools!"
+elif ! which samtools &>/dev/null; then
+  echo "Could not find samtools!"
   exit -1
-elif [ $(which hotspot2 &>/dev/null || echo "$?") ] ; then
-  echo "Did not find hotspot2!"
+elif ! which hotspot2 &>/dev/null; then
+  echo "Could not find hotspot2!"
   exit -1
-elif [ $(which tallyCountsInSmallWindows &>/dev/null || echo "$?") ] ; then
-  echo "Did not find tallyCountsInSmallWindows!"
+elif ! which tallyCountsInSmallWindows &>/dev/null; then
+  echo "Could not find tallyCountsInSmallWindows!"
   exit -1
 fi
 WAVELETS_EXE=$(which modwt)
@@ -124,9 +124,9 @@ EXCLUDE_EXE="$(dirname "$0")/bed_exclude.py"
 COUNTING_EXE=tallyCountsInSmallWindows
 HOTSPOT_EXE=hotspot2
 
-mkdir -p $OUTDIR
+mkdir -p "$OUTDIR"
 
-HOTSPOT_OUTFILE="$OUTDIR/$(basename "$BAM" .bam).hotspots.fdr"$HOTSPOT_FDR_THRESHOLD".starch"
+HOTSPOT_OUTFILE="$OUTDIR/$(basename "$BAM" .bam).hotspots.fdr$HOTSPOT_FDR_THRESHOLD.starch"
 CUTCOUNTS="$OUTDIR/$(basename "$BAM" .bam).cutcounts.starch"
 OUTFILE="$OUTDIR/$(basename "$BAM" .bam).allcalls.starch"
 DENSITY_OUTFILE="$OUTDIR/$(basename "$BAM" .bam).density.starch"
