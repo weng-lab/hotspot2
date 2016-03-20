@@ -18,7 +18,8 @@ Options:
     -n NEIGHBORHOOD_SIZE  Local neighborhood size (100)
     -w WINDOW_SIZE        Background region size  (25000)
     -p PVAL_FDR           Number of p-values to use for FDR (1000000)
-    -f FDR_THRESHOLD      The false-discovery rate to use for filtering (0.05)
+    -f HOTSPOT_THRESHOLD  False-discovery rate to use for hotspot filtering (0.05)
+    -F SITECALL_THRESHOLD False-discovery rate to use for site-call filtering (0.10)
     -O                    Use non-overlapping windows (advanced option)
 
     -s SEED               Set this to an integer for repeatable results
@@ -28,6 +29,9 @@ Options:
 
     Neighborhood and window sizes are specified as the distance from the edge
     to the center - i.e, a 100bp neighborhood size is a 201bp window.
+
+    The site-call False Discovery Rate threshold (-F) must be greater than or
+    equal to the hotspot FDR threshold.
 
     Using non-overlapping windows is not recommended for most users.
 
@@ -42,10 +46,11 @@ SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE=100 # i.e., 201bp regions
 BACKGROUND_WINDOW_SIZE=50001 # i.e., +/-25kb around each position
 PVAL_DISTN_SIZE=1000000
 OVERLAPPING_OR_NOT="overlapping"
-FDR_THRESHOLD="0.05"
+CALL_THRESHOLD="0.10"
+HOTSPOT_FDR_THRESHOLD="0.05"
 SEED=$RANDOM
 
-while getopts 'hc:e:f:m:n:p:s:w:O' opt ; do
+while getopts 'hc:e:f:F:m:n:p:s:w:O' opt ; do
   case "$opt" in
     h)
       usage
@@ -57,7 +62,10 @@ while getopts 'hc:e:f:m:n:p:s:w:O' opt ; do
       EXCLUDE_THESE_REGIONS=$OPTARG
       ;;
     f)
-      FDR_THRESHOLD=$OPTARG
+      HOTSPOT_FDR_THRESHOLD=$OPTARG
+      ;;
+    F)
+      CALL_THRESHOLD=$OPTARG
       ;;
     n)
       SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE=$OPTARG
@@ -81,6 +89,12 @@ shift $((OPTIND-1))
 
 if [[ -z "$1" || -z "$2" || -z "$CHROM_SIZES" ]]; then
   usage
+fi
+
+# Check to make sure Hotspot FDR <= site-call FDR
+if awk '{exit $1>$2?0:1}' <<< "$HOTSPOT_FDR_THRESHOLD $CALL_THRESHOLD"; then
+  echo "Hotspot FDR threshold (-f) cannot be greater than site-calling threshold (-F)" >&2
+  exit 2
 fi
 
 BAM=$1
@@ -112,7 +126,7 @@ HOTSPOT_EXE=hotspot2
 
 mkdir -p $OUTDIR
 
-HOTSPOT_OUTFILE="$OUTDIR/$(basename "$BAM" .bam).hotspots.fdr"$FDR_THRESHOLD".starch"
+HOTSPOT_OUTFILE="$OUTDIR/$(basename "$BAM" .bam).hotspots.fdr"$HOTSPOT_FDR_THRESHOLD".starch"
 CUTCOUNTS="$OUTDIR/$(basename "$BAM" .bam).cutcounts.starch"
 OUTFILE="$OUTDIR/$(basename "$BAM" .bam).allcalls.starch"
 DENSITY_OUTFILE="$OUTDIR/$(basename "$BAM" .bam).density.starch"
@@ -129,7 +143,7 @@ echo "Running hotspot2..."
 bedops -e 1 "$CUTCOUNTS" "$CHROM_SIZES" \
     | "$COUNTING_EXE" "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" "$OVERLAPPING_OR_NOT" "reportEachUnit" "$CHROM_SIZES" \
     | python "$EXCLUDE_EXE" "$EXCLUDE_THESE_REGIONS" \
-    | "$HOTSPOT_EXE" --fdr_threshold "$FDR_THRESHOLD" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" \
+    | "$HOTSPOT_EXE" --fdr_threshold "$CALL_THRESHOLD" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" \
     | starch - \
     > "$OUTFILE"
 
@@ -141,7 +155,7 @@ bedops -e 1 "$CUTCOUNTS" "$CHROM_SIZES" \
 
 echo "Thresholding..."
 unstarch "$OUTFILE" \
-    | awk -v "threshold=$FDR_THRESHOLD" '($6 <= threshold)' \
+    | awk -v "threshold=$HOTSPOT_FDR_THRESHOLD" '($6 <= threshold)' \
     | bedops -m - \
     | bedmap --faster --sweep-all --delim "\t" --echo --min - "$OUTFILE" \
     | awk 'BEGIN{OFS="\t";c=-0.4342944819}
