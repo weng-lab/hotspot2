@@ -14,11 +14,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime> // for seeding the random number generator
+#include <deque>
 #include <fstream>
 #include <getopt.h>
 #include <iostream>
 #include <limits> // for epsilon()
-#include <list>
 #include <map>
 #include <set>
 #include <sstream>
@@ -383,8 +383,8 @@ private:
   int m_MAlength;
   double m_thresholdRatio;
   vector<StatsForCount> m_distn; // distribution of observed counts
-  list<SiteData> m_sitesInRegion_leftHalf; // endPos values of the sites in the region and whether P has been assigned
-  list<SiteData> m_sitesInRegion_rightHalf; // endPos values of the sites in the region and whether P has been assigned
+  deque<SiteData> m_sitesInRegion_leftHalf; // endPos values of the sites in the region and whether P has been assigned
+  deque<SiteData> m_sitesInRegion_rightHalf; // endPos values of the sites in the region and whether P has been assigned
   int m_modeXval;
   int m_modeYval;
   int m_kcutoff;
@@ -1000,7 +1000,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
       // P-values have been computed for all counts observed in this region.
       // Assign these P-values to the counts observed in the left half of this region
       // (i.e., assign to all points to the left of the central bp of this region).
-      for (list<SiteData>::iterator it = m_sitesInRegion_leftHalf.begin();
+      for (deque<SiteData>::iterator it = m_sitesInRegion_leftHalf.begin();
            it != m_sitesInRegion_leftHalf.end();
            it++)
         {
