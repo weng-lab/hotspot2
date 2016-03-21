@@ -290,7 +290,7 @@ void SiteManager::initialize(const int& n)
 
 void SiteManager::addSite(const Site& s)
 {
-  if (m_idxInsertHere < m_sites.size())
+  if (m_idxInsertHere < static_cast<int>(m_sites.size()))
     m_sites[m_idxInsertHere++] = s;
   else
     {
@@ -452,7 +452,7 @@ void BackgroundRegionManager::add(const Site& s)
   else
     m_sitesInRegion_rightHalf.push_back(sd);
   // Add the incoming site's count to the distribution of counts observed in this region.
-  if (s.count < m_distn.size())
+  if (s.count < static_cast<int>(m_distn.size()))
     m_distn[s.count].numOccs++;
   else
     {
@@ -460,7 +460,7 @@ void BackgroundRegionManager::add(const Site& s)
       sc.numOccs = 0;
       sc.pmf = sc.pval = -1.;
       sc.MAxN = -1; // don't compute moving averages until/unless we're sliding, for efficiency's sake
-      while (m_distn.size() < s.count)
+      while (static_cast<int>(m_distn.size()) < s.count)
         m_distn.push_back(sc); // create bins for unobserved interior values, e.g., count = 5 but only 0,1,2 have been observed so far
       sc.numOccs = 1;
       m_distn.push_back(sc);
@@ -497,7 +497,7 @@ void BackgroundRegionManager::findCutoff()
 
   int kcutoff_uponEntry = m_kcutoff;
 
-  if (m_modeXval + m_MAlength >= m_distn.size())
+  if (m_modeXval + m_MAlength >= static_cast<int>(m_distn.size()))
     {
       // Too few distinct count values were observed to compute a moving average of length MAlength;
       // set the "cutoff" to the largest observed count, i.e., use all data, don't "cut off" any points.
@@ -589,7 +589,7 @@ void BackgroundRegionManager::findCutoff()
   double minMAxN = static_cast<double>(m_minMAxN);
 
   idxR++;
-  while (idxR < m_distn.size())
+  while (idxR < static_cast<int>(m_distn.size()))
     {
       idxC++;
       if (!m_sliding)
@@ -664,7 +664,7 @@ void BackgroundRegionManager::findCutoff()
   // Also compute the rest of the moving averages if necessary.
   if (!m_sliding)
     {
-      while (idxR < m_distn.size())
+      while (idxR < static_cast<int>(m_distn.size()))
         {
           sum -= m_distn[idxL++].numOccs;
           sum += m_distn[idxR++].numOccs;
@@ -768,7 +768,7 @@ void BackgroundRegionManager::computeStats(const int& this_k)
       double curPMF(prob0);
       m_distn[0].pmf = curPMF;
 
-      for (k = 1; k < m_distn.size(); k++)
+      for (k = 1; k < static_cast<int>(m_distn.size()); k++)
         {
           curPMF = m_pmf(k, curPMF, m_pmfParams); // note: if pmf == binomial and k > binomial's n, 0 is returned
           m_distn[k].pmf = curPMF;
@@ -1079,7 +1079,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
               m_numPtsInNullRegion--;
             }
           m_distn[k].numOccs--;
-          if (0 == m_distn[k].numOccs && k == m_distn.size() - 1)
+          if (0 == m_distn[k].numOccs && k == static_cast<int>(m_distn.size()) - 1)
             {
               // The bin at the end of the count distribution/histogram is now empty.
               // Delete it, and delete any empty bins immediately preceding it,
@@ -1090,11 +1090,11 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
               // 1+ moving averages at the end of m_distn are now undefined.
               // (It's very rare that this will occur.)
               // Mark them as such for bookkeeping's sake.
-              for (int i = m_distn.size() - 1; i > m_distn.size() - m_MAlength / 2 && i > -1; i--)
+              for (int i = static_cast<int>(m_distn.size()) - 1; i > static_cast<int>(m_distn.size()) - m_MAlength / 2 && i > -1; i--)
                 m_distn[i].MAxN = -1;
               // If we deleted the bin corresponding to m_kcutoff,
               // update m_kcutoff so that it's within range.
-              if (m_kcutoff >= m_distn.size())
+              if (m_kcutoff >= static_cast<int>(m_distn.size()))
                 m_kcutoff = m_distn.size() - 1;
               // There's essentially no chance we've deleted the mode,
               // because that can only happen if all k values below it
@@ -1326,7 +1326,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
           m_numPtsInNullRegion--;
         }
       m_distn[k_outgoing].numOccs--;
-      if (0 == m_distn[k_outgoing].numOccs && k_outgoing == m_distn.size() - 1)
+      if (0 == m_distn[k_outgoing].numOccs && k_outgoing == static_cast<int>(m_distn.size()) - 1)
         {
           // The bin at the end of the count distribution/histogram is now empty.
           // Delete it, and delete any empty bins immediately preceding it,
@@ -1337,11 +1337,11 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
           // 1+ moving averages at the end of m_distn are now undefined.
           // (It's very rare that this will occur.)
           // Mark them as such for bookkeeping's sake.
-          for (int i = m_distn.size() - 1; i >= m_distn.size() - m_MAlength / 2 && i > -1; i--)
+          for (int i = static_cast<int>(m_distn.size()) - 1; i >= static_cast<int>(m_distn.size()) - m_MAlength / 2 && i > -1; i--)
             m_distn[i].MAxN = -1;
           // If we deleted the bin corresponding to m_kcutoff,
           // update m_kcutoff so that it's within range.
-          if (m_kcutoff >= m_distn.size())
+          if (m_kcutoff >= static_cast<int>(m_distn.size()))
             m_kcutoff = m_distn.size() - 1;
           // There's essentially no chance we've deleted the mode,
           // because that can only happen if all k values below it
@@ -1362,7 +1362,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
       m_runningSum_countSquared += k_incoming * k_incoming;
       m_numPtsInNullRegion++;
     }
-  if (k_incoming < m_distn.size())
+  if (k_incoming < static_cast<int>(m_distn.size()))
     m_distn[k_incoming].numOccs++; // NOTE:  Still need to update MAxN values; will do that below.
   else
     {
@@ -1372,7 +1372,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
       sc.numOccs = 0;
       sc.pmf = sc.pval = -1.;
       sc.MAxN = -1;
-      while (m_distn.size() < k_incoming)
+      while (static_cast<int>(m_distn.size()) < k_incoming)
         m_distn.push_back(sc); // create bins for unobserved interior values, e.g., count = 5 but only 0,1,2 have been observed so far
       sc.numOccs = 1;
       m_distn.push_back(sc);
@@ -1386,7 +1386,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
           firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
           lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
           idxR++;
-          while (idxR < m_distn.size())
+          while (idxR < static_cast<int>(m_distn.size()))
             {
               sum -= m_distn[idxL++].numOccs;
               sum += m_distn[idxR++].numOccs;
@@ -1395,7 +1395,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
               lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
             }
         }
-      else if (m_distn.size() >= m_MAlength)
+      else if (static_cast<int>(m_distn.size()) >= m_MAlength)
         {
           // m_distn contained very few bins before an observation of k_incoming slid into the current region,
           // too few to compute any moving averages (times N, MAxN), but k_incoming is large enough
@@ -1457,7 +1457,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
   // then the MAxN values are up-to-date with respect to k_incoming.
   // Otherwise, update moving averages (technically, moving sums, not averages, because we're not dividing them by N)
   // to reflect the addition of k_incoming.
-  if (m_distn.size() <= origDistnSize) // <=, not ==, because k_outgoing could have caused shrinkage of m_distn.
+  if (static_cast<int>(m_distn.size()) <= origDistnSize) // <=, not ==, because k_outgoing could have caused shrinkage of m_distn.
     {
       idxMin = max(k_incoming - m_MAlength / 2, m_MAlength / 2);
       idxMax = min(k_incoming + m_MAlength / 2, static_cast<int>(m_distn.size()) - 1 - m_MAlength / 2);

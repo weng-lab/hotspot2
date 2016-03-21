@@ -27,19 +27,21 @@ struct Site {
   int numCuts;
 };
 
-
 string _g_chr;
 int _g_start, _g_end, _g_count;
-void outputSite(const string chr, const int end, const int cutcount){
+void outputSite(const string chr, const int end, const int cutcount)
+{
   //cout << chr << "\t" << end-1 << "\t" << end << "\ti\t" << cutcount << "\n";
-  if (chr != _g_chr || end != _g_end +1 || cutcount != _g_count ) {
-    if ( _g_chr != "") {
-      cout <<_g_chr << "\t" << _g_start <<"\t"<< _g_end << "\ti\t" << _g_count << "\n";
+  if (chr != _g_chr || end != _g_end + 1 || cutcount != _g_count)
+    {
+      if (_g_chr != "")
+        {
+          cout << _g_chr << "\t" << _g_start << "\t" << _g_end << "\ti\t" << _g_count << "\n";
+        }
+      _g_chr = chr;
+      _g_start = end - 1;
+      _g_count = cutcount;
     }
-    _g_chr = chr;
-    _g_start = end - 1;
-    _g_count = cutcount;
-  }
   _g_end = end;
 }
 
@@ -221,8 +223,8 @@ private:
   void processStoredSites(void);
   vector<SiteData> m_storedSites;
   string m_chrom;
-  int m_idxInsertHere;
-  int m_halfWindowSize;
+  vector<SiteData>::size_type m_idxInsertHere;
+  vector<SiteData>::size_type m_halfWindowSize;
   bool m_reportSomethingForEveryBp;
   map<string, int> m_chromSizes;
   int m_sizeOfCurChrom;
@@ -244,7 +246,7 @@ void OverlordOfOverlapping::initialize(const int& halfWindowSize, const bool& ev
 
 void OverlordOfOverlapping::processStoredSites(void)
 {
-  int idxL(0), idxC(m_halfWindowSize), idxR;
+  vector<SiteData>::size_type idxL(0), idxC(m_halfWindowSize), idxR;
   const int windowSize(2 * m_halfWindowSize + 1);
   const bool endOfChrom = m_idxInsertHere < m_storedSites.size() ? true : false;
   int sum(0);
