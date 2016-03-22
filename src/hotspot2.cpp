@@ -28,14 +28,27 @@
 
 using namespace std;
 
+map<string, string*> interned;
+
+string* intern(string s)
+{
+  map<string, string*>::iterator it = interned.find(s);
+  if (it == interned.end())
+    {
+      interned[s] = new string(s);
+      return interned[s];
+    }
+  return it->second;
+}
+
 struct Site {
-  string chrom;
-  long endPos; // beg = endPos - 1
-  string ID;
-  int count;
-  bool hasPval; // whether a P-value has been computed for the site
+  string* chrom;
+  string* ID;
   double pval;
   double qval;
+  long endPos; // beg = endPos - 1
+  int count;
+  bool hasPval; // whether a P-value has been computed for the site
 };
 
 double nextProbNegativeBinomial(const int& k, const double& prevVal, const vector<double>& params);
@@ -314,8 +327,8 @@ void SiteManager::getFDRvalsAndWriteAndFlush(PvalueManager& pvm)
       m_sites[i].qval = pvm.FDR(m_sites[i].pval);
       if (m_sites[i].qval <= pvm.thresholdFDR())
         {
-          cout << m_sites[i].chrom << '\t' << m_sites[i].endPos - 1 << '\t'
-               << m_sites[i].endPos << '\t' << m_sites[i].ID << '\t' << m_sites[i].pval
+          cout << *m_sites[i].chrom << '\t' << m_sites[i].endPos - 1 << '\t'
+               << m_sites[i].endPos << '\t' << *m_sites[i].ID << '\t' << m_sites[i].pval
                << '\t' << m_sites[i].qval << '\n';
         }
       i++;
@@ -1665,7 +1678,7 @@ bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const
   SiteManager sm(pvalDistnSize);
   PvalueManager pvm(pvalDistnSize, fdr_threshold);
 
-  prevSite.chrom = string("xxxNONExxx");
+  prevSite.chrom = intern(string("xxxNONExxx"));
   curSite.hasPval = false;
   curSite.pval = -1.;
   curSite.qval = -1.;
@@ -1677,7 +1690,7 @@ bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const
       linenum++;
       fieldnum = 1;
       p = strtok(buf, "\t");
-      curSite.chrom = string(p);
+      curSite.chrom = intern(string(p));
       fieldnum++;
       if (!(p = strtok(NULL, "\t")))
         {
@@ -1695,7 +1708,7 @@ bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const
       fieldnum++;
       if (!(p = strtok(NULL, "\t")))
         goto MissingField;
-      curSite.ID = string(p);
+      curSite.ID = intern(string(p));
       fieldnum++;
       if (!(p = strtok(NULL, "\t")))
         goto MissingField;
