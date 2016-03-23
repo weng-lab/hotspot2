@@ -3,11 +3,14 @@ SRCDIR = src
 CXX = g++
 CXXFLAGS = -O3 -pedantic -Wall -ansi -static
 
-default:
+TARGETS = hotspot2 tallyCountsInSmallWindows
+EXE = $(addprefix $(BINDIR)/,$(TARGETS))
+
+default: $(EXE)
+
+$(BINDIR)/% : $(SRCDIR)/%.cpp
 	mkdir -p $(BINDIR)
-	$(CXX) $(CXXFLAGS) $(SRCDIR)/hotspot2.cpp -o $(BINDIR)/hotspot2
-	$(CXX) $(CXXFLAGS) $(SRCDIR)/tallyCountsInSmallWindows.cpp -o $(BINDIR)/tallyCountsInSmallWindows
+	$(CXX) $(CXXFLAGS) $< -o $@
 
 clean:
-	rm -f $(BINDIR)/hotspot2
-	rm -f $(BINDIR)/tallyCountsInSmallWindows
+	rm -f $(EXE)
