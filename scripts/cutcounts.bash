@@ -2,18 +2,17 @@
 # This is a modified version of the cutcounts script used in stampipes
 set -x -e -o pipefail
 
-if [[ $# != 2 ]] ; then
-  echo "Usage: $0 in.bam output.starch" >&2
+if [[ $# != 3 ]] ; then
+  echo "Usage: $0 in.bam cutcounts.starch fragments.starch" >&2
   exit 2
 fi
 
 bam=$1
 CUTCOUNTS=$2
+FRAGMENTS=$3
 
 name=$(basename $bam .bam)
 outputdir="$(dirname $CUTCOUNTS)"
-
-FRAGMENTS=$outputdir/$name.fragments.sorted.starch
 
 clean=0
 if [[ -z "$TMPDIR" ]] ;then

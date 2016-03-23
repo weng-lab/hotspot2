@@ -126,17 +126,21 @@ HOTSPOT_EXE=hotspot2
 
 mkdir -p "$OUTDIR"
 
-HOTSPOT_OUTFILE="$OUTDIR/$(basename "$BAM" .bam).hotspots.fdr$HOTSPOT_FDR_THRESHOLD.starch"
-CUTCOUNTS="$OUTDIR/$(basename "$BAM" .bam).cutcounts.starch"
-OUTFILE="$OUTDIR/$(basename "$BAM" .bam).allcalls.starch"
-DENSITY_OUTFILE="$OUTDIR/$(basename "$BAM" .bam).density.starch"
-PEAKS_OUTFILE="$OUTDIR/$(basename "$BAM" .bam).peaks.starch"
+base="$OUTDIR/$(basename "$BAM" .bam)"
+
+HOTSPOT_OUTFILE="$base.hotspots.fdr$HOTSPOT_FDR_THRESHOLD.starch"
+CUTCOUNTS="$base.cutcounts.starch"
+FRAGMENTS_OUTFILE=$base.fragments.sorted.starch
+OUTFILE="$base.allcalls.starch"
+DENSITY_OUTFILE="$base.density.starch"
+PEAKS_OUTFILE="$base.peaks.starch"
+SPOT_SCORE_OUTFILE="$base.SPOT.txt"
 
 
 TMPDIR=${TMPDIR:-$(mktemp -d)}
 
 echo "Cutting..."
-bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS"
+bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS" "$FRAGMENTS_OUTFILE"
 
 # don't unstarch $CUTCOUNTS and feed to $COUNTING_EXE since things like chrM may be in $CUTCOUNTS but not $CHROM_SIZES
 # run $CHROM_SIZES through bedops --ec -u for error checking
@@ -148,7 +152,6 @@ bedops --ec -u "$CHROM_SIZES" \
     | "$HOTSPOT_EXE" --fdr_threshold "$CALL_THRESHOLD" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" \
     | starch - \
     > "$OUTFILE"
-
 
 # P-values of 0 will exist, and we don't want to do log(0).
 # Roughly 1e-308 is the smallest nonzero P usually seen,
@@ -171,6 +174,14 @@ unstarch "$OUTFILE" \
      | starch - \
      > "$HOTSPOT_OUTFILE"
 
+echo "Calculating SPOT score..."
+num_frags=$(unstarch --elements "$FRAGMENTS_OUTFILE")
+frags_in_hotspots=$(bedops --header -e -1 "$FRAGMENTS_OUTFILE" "$HOTSPOT_OUTFILE" | wc -l)
+echo "scale=4; $frags_in_hotspots / $num_frags" \
+  | bc \
+  > "$SPOT_SCORE_OUTFILE"
+
+echo "Generating peaks..."
 bash "$DENSPK_EXE" "$TMPDIR" "$WAVELETS_EXE" "$CUTCOUNTS" "$HOTSPOT_OUTFILE" "$CHROM_SIZES" "$DENSITY_OUTFILE" "$PEAKS_OUTFILE"
 
 echo "Done!"
