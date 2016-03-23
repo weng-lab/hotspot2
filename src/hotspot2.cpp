@@ -1750,7 +1750,7 @@ int main(int argc, char* argv[])
 {
 
   // Option defaults
-  int background_size = 500001;
+  int background_size = 50001;
   int num_pvals = 1000000;
   int seed = time(NULL);
   double fdr_threshold = 1.00;
