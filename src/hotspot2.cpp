@@ -190,20 +190,18 @@ void PvalueManager::computeFDRvals(void)
           // Select previously-processed P-values at random
           // to fill in the current distributions,
           // until we have the desired sizes for the distributions.
-          set<int> alreadyChosenObs, alreadyChosenExp;
-          while (m_curNumObsP < m_N)
+          int need = m_N - m_curNumObsP;
+          for (int i = 0; i < need; i++)
             {
-              int randIdx;
-              set<int>::const_iterator it;
-              do
-                {
-                  randIdx = rand() % m_N;
-                  it = alreadyChosenObs.find(randIdx);
-                }
-              while (it != alreadyChosenObs.end());
-              m_curObsPvals[m_curNumObsP++] = m_prevObsPvals[randIdx];
-              alreadyChosenObs.insert(randIdx);
+              m_curObsPvals[m_curNumObsP + i] = m_prevObsPvals[i];
             }
+          for (int i = need; i < m_N; i++)
+            {
+              int j = rand() % i;
+              if (j < need)
+                m_curObsPvals[m_curNumObsP + j] = m_prevObsPvals[i];
+            }
+          m_curNumObsP += need;
         }
       else
         {
