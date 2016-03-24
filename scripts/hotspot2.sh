@@ -141,7 +141,11 @@ PEAKS_OUTFILE="$base.peaks.starch"
 SPOT_SCORE_OUTFILE="$base.SPOT.txt"
 
 
-TMPDIR=${TMPDIR:-$(mktemp -d)}
+clean=0
+if [[ -z "$TMPDIR" ]] ;then
+  TMPDIR=$(mktemp -d)
+  clean=1
+fi
 
 echo "Cutting..."
 bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS" "$FRAGMENTS_OUTFILE"
@@ -197,5 +201,9 @@ bedGraphToBigWig \
   "$DENSITY_BW"
 
 echo "Done!"
+
+if [[ $clean != 0 ]] ; then
+  rm -rf "$TMPDIR"
+fi
 
 exit 0
