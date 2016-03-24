@@ -20,6 +20,9 @@ if [[ -z "$TMPDIR" ]] ;then
   clean=1
 fi
 
+# Prefer mawk, if installed
+AWK_EXE=$(which mawk 2>/dev/null || which awk)
+
 # temp files
 FRAGMENTSTMP="$TMPDIR/fragments.bed"
 
@@ -27,7 +30,7 @@ FRAGMENTSTMP="$TMPDIR/fragments.bed"
 if [[  ! -s "$CUTCOUNTS" || ! -s "$FRAGMENTS" ]]; then
 
   time bam2bed --do-not-sort < "$bam" \
-    | awk -v fragmentfile=$FRAGMENTSTMP \
+    | "$AWK_EXE" -v fragmentfile=$FRAGMENTSTMP \
         'BEGIN { FS="\t"; OFS=FS } ; { \
           strand=$6; \
           read_start=$2; \
@@ -50,7 +53,7 @@ if [[  ! -s "$CUTCOUNTS" || ! -s "$FRAGMENTS" ]]; then
         }' \
     | sort-bed --max-mem 8G - \
     | uniq -c \
-    | awk '{ print $2"\t"$3"\t"$4"\tid-"NR"\t"$1 }' \
+    | "$AWK_EXE" '{ print $2"\t"$3"\t"$4"\tid-"NR"\t"$1 }' \
     | starch - \
     > "$CUTCOUNTS"
 
