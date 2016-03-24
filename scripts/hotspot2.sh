@@ -163,12 +163,13 @@ unstarch "$OUTFILE" \
     | awk -v "threshold=$HOTSPOT_FDR_THRESHOLD" '($6 <= threshold)' \
     | bedops -m - \
     | bedmap --faster --sweep-all --delim "\t" --echo --min - "$OUTFILE" \
+    | bedmap --faster --sweep-all --delim "\t" --echo --count - "$FRAGMENTS_OUTFILE" \
     | awk 'BEGIN{OFS="\t";c=-0.4342944819}
       {
         if($4>1e-308) {
-          print $1, $2, $3, "id-"NR, c*log($4)
+          print $1, $2, $3, "id-"NR, $5, ".",".",".", c*log($4)
         } else {
-          print $1, $2, $3, "id-"NR, "308"
+          print $1, $2, $3, "id-"NR, $5, ".",".",".", "308"
         }
       }' \
      | starch - \
