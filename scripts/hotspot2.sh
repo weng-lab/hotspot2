@@ -133,6 +133,7 @@ CUTCOUNTS="$base.cutcounts.starch"
 FRAGMENTS_OUTFILE=$base.fragments.sorted.starch
 OUTFILE="$base.allcalls.starch"
 DENSITY_OUTFILE="$base.density.starch"
+DENSITY_BW="$base.density.bw"
 PEAKS_OUTFILE="$base.peaks.starch"
 SPOT_SCORE_OUTFILE="$base.SPOT.txt"
 
@@ -182,8 +183,15 @@ echo "scale=4; $frags_in_hotspots / $num_frags" \
   | bc \
   > "$SPOT_SCORE_OUTFILE"
 
-echo "Generating peaks..."
+echo "Generating peaks and density..."
 bash "$DENSPK_EXE" "$TMPDIR" "$WAVELETS_EXE" "$CUTCOUNTS" "$HOTSPOT_OUTFILE" "$CHROM_SIZES" "$DENSITY_OUTFILE" "$PEAKS_OUTFILE"
+
+TMPFRAGS="$(mktemp -t frags)"
+unstarch "$DENSITY_OUTFILE" | cut -f1,2,3,5 > "$TMPFRAGS"
+bedGraphToBigWig \
+  "$TMPFRAGS" \
+  <(cut -f1,3 "$CHROM_SIZES") \
+  "$DENSITY_BW"
 
 echo "Done!"
 
