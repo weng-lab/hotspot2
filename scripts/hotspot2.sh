@@ -104,6 +104,9 @@ echo "checking system for modwt, BEDOPS, samtools..."
 if ! which modwt &>/dev/null; then
   echo "Could not find modwt!"
   exit -1
+elif ! which bedGraphToBigWig &>/dev/null; then
+  echo "Could not find bedGraphToBigWig!"
+  exit -1
 elif ! which bedmap &>/dev/null; then
   echo "Could not find BEDOPS (bedmap)!"
   exit -1
