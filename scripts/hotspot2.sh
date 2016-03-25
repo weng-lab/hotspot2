@@ -17,6 +17,7 @@ Options:
   Optional options:
     -n NEIGHBORHOOD_SIZE  Local neighborhood size (100)
     -w WINDOW_SIZE        Background region size  (25000)
+    -m MIN_HOTSPOT_WIDTH  Minimum hotspot width allowed (50)
     -p PVAL_FDR           Number of p-values to use for FDR (1000000)
     -f HOTSPOT_THRESHOLD  False-discovery rate to use for hotspot filtering (0.05)
     -F SITECALL_THRESHOLD False-discovery rate to use for site-call filtering (0.10)
@@ -44,6 +45,7 @@ EXCLUDE_THESE_REGIONS="/dev/null"
 CHROM_SIZES=""
 SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE=100 # i.e., 201bp regions
 BACKGROUND_WINDOW_SIZE=50001 # i.e., +/-25kb around each position
+MIN_HOTSPOT_WIDTH=50
 PVAL_DISTN_SIZE=1000000
 OVERLAPPING_OR_NOT="overlapping"
 CALL_THRESHOLD="0.10"
@@ -67,6 +69,8 @@ while getopts 'hc:e:f:F:m:n:p:s:w:O' opt ; do
     F)
       CALL_THRESHOLD=$OPTARG
       ;;
+    m)
+      MIN_HOTSPOT_WIDTH=$OPTARG
     n)
       SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE=$OPTARG
       ;;
@@ -170,6 +174,33 @@ echo "Thresholding..."
 unstarch "$OUTFILE" \
     | awk -v "threshold=$HOTSPOT_FDR_THRESHOLD" '($6 <= threshold)' \
     | bedops -m - \
+    | awk -v minW=$MIN_HOTSPOT_WIDTH 'BEGIN{FS="\t";OFS="\t"}{chrR=$1;begPosR=$2;endPosR=$3;widthR=endPosR-begPosR; \
+    if(NR>1) { \
+	if (chrR == chrL) { \
+	    distLR = begPosR - endPosL; \
+	} \
+	else { \
+	    distLR=999999999; \
+	} \
+	if (distLR > minW) { \
+	    if (widthL >= minW) { \
+		print chrL, begPosL, endPosL; \
+	    } \
+	} \
+	else { \
+	    if (widthL < minW || widthR < minW) { \
+		begPosR = begPosL; \
+	    } \
+	    else { \
+		print chrL, begPosL, endPosL; \
+	    } \
+	} \
+    } \
+    chrL = chrR; \
+    begPosL = begPosR; \
+    endPosL = endPosR; \
+    widthL = widthR; \
+    }END{if(widthL >= minW){print chrL, begPosL, endPosL}}' \
     | bedmap --faster --sweep-all --delim "\t" --echo --min - "$OUTFILE" \
     | bedmap --faster --sweep-all --delim "\t" --echo --count - "$FRAGMENTS_OUTFILE" \
     | awk 'BEGIN{OFS="\t";c=-0.4342944819}
