@@ -132,6 +132,10 @@ EXCLUDE_EXE="$(dirname "$0")/bed_exclude.py"
 COUNTING_EXE=tallyCountsInSmallWindows
 HOTSPOT_EXE=hotspot2
 
+# Prefer mawk, if installed
+AWK_EXE=$(which mawk 2>/dev/null || which awk)
+
+
 mkdir -p "$OUTDIR"
 
 base="$OUTDIR/$(basename "$BAM" .bam)"
@@ -173,7 +177,7 @@ bedops --ec -u "$CHROM_SIZES" \
 
 echo "Thresholding..."
 unstarch "$OUTFILE" \
-    | awk -v "threshold=$HOTSPOT_FDR_THRESHOLD" '($6 <= threshold)' \
+    | "$AWK_EXE" -v "threshold=$HOTSPOT_FDR_THRESHOLD" '($6 <= threshold)' \
     | bedops -m - \
     | awk -v minW=$MIN_HOTSPOT_WIDTH 'BEGIN{FS="\t";OFS="\t"}{chrR=$1;begPosR=$2;endPosR=$3;widthR=endPosR-begPosR; \
     if(NR>1) { \
@@ -204,7 +208,7 @@ unstarch "$OUTFILE" \
     }END{if(widthL >= minW){print chrL, begPosL, endPosL}}' \
     | bedmap --faster --sweep-all --delim "\t" --echo --min - "$OUTFILE" \
     | bedmap --faster --sweep-all --delim "\t" --echo --count - "$FRAGMENTS_OUTFILE" \
-    | awk 'BEGIN{OFS="\t";c=-0.4342944819}
+    | "$AWK_EXE" 'BEGIN{OFS="\t";c=-0.4342944819}
       {
         if($4>1e-308) {
           print $1, $2, $3, "id-"NR, $5, ".",".",".", c*log($4)
