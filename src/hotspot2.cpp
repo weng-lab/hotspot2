@@ -399,7 +399,6 @@ private:
   int m_modeXval;
   int m_modeYval;
   int m_kcutoff;
-  int m_kTrendStart; // do we really need this?
   int m_kTrendReversal;
   bool m_sliding;
   bool m_needToUpdate_kcutoff;
@@ -422,7 +421,7 @@ BackgroundRegionManager::BackgroundRegionManager(void)
   m_sliding = false;
   m_needToUpdate_kcutoff = true;
 
-  m_minMAxN = m_kTrendStart = m_kTrendReversal = -1;
+  m_minMAxN = m_kTrendReversal = -1;
   m_prev_k = -1;
   m_pmf = NULL;
 }
@@ -513,7 +512,7 @@ void BackgroundRegionManager::findCutoff()
       // Too few distinct count values were observed to compute a moving average of length MAlength;
       // set the "cutoff" to the largest observed count, i.e., use all data, don't "cut off" any points.
       m_kcutoff = m_distn.size() - 1;
-      m_minMAxN = m_kTrendStart = m_kTrendReversal = -1;
+      m_minMAxN = m_kTrendReversal = -1;
       m_kvalsWithMinMAxN.clear();
       m_needToUpdate_kcutoff = false;
 
@@ -652,7 +651,7 @@ void BackgroundRegionManager::findCutoff()
   if (!useGlobMin)
     {
       m_kcutoff = m_distn.size() - 1;
-      m_kTrendStart = m_kTrendReversal = -1;
+      m_kTrendReversal = -1;
       m_kvalsWithMinMAxN.clear();
       m_minMAxN = -1;
       m_needToUpdate_kcutoff = false;
@@ -666,7 +665,6 @@ void BackgroundRegionManager::findCutoff()
   int k = *(--it);
   m_kcutoff = k;
 
-  m_kTrendStart = m_modeXval + m_MAlength / 2; // where the monotonically decreasing trend starts
   if (m_minMAxN > 0)
     m_kTrendReversal = xyCurMAxN.first; // where we determined the monotonically decreasing trend to have reversed
   else
@@ -764,8 +762,7 @@ void BackgroundRegionManager::computeStats(const int& this_k)
         }
     }
 
-  // Now compute the pmf values, from the null model (e.g. negative binomial fit),
-  // going forward from k=0 counts to the maximum # of counts observed.
+  // Now compute the minimum necessary number of pmf values, from the null model (e.g. negative binomial fit).
 
   // BUGBUG potential speed-up:  Allow the user to specify a minimum pmf,
   // such that no pmf values below it will be computed and
@@ -774,115 +771,57 @@ void BackgroundRegionManager::computeStats(const int& this_k)
   // If a P-value is, say, 1.23456e-218, do we really want to know that,
   // or are we content to know that it's something smaller than, say, 1e-40?
 
-  if (-1 == this_k) // then compute pmfs for all distinct counts k observed in the background window
+  double curPMF(prob0);
+  int k_begin(1), k_end(m_distn.size() - 1); // default (-1 == this_k):  compute for all k observed in the background window
+  if (-1 == this_k)
+    m_distn[0].pmf = curPMF;
+  else
     {
-      double curPMF(prob0);
-      m_distn[0].pmf = curPMF;
-
-      for (k = 1; k < static_cast<int>(m_distn.size()); k++)
-        {
-          curPMF = m_pmf(k, curPMF, m_pmfParams); // note: if pmf == binomial and k > binomial's n, 0 is returned
-          m_distn[k].pmf = curPMF;
-        }
-
-      // To compute P-values for the observations under the null model,
-      // we can first compute the total probability
-      // of observing any count value higher than the highest count value observed,
-      // and then compute sums going backwards (i.e. to lower k values) from there.
-      // There will be round-off errors,
-      // but by computing things this way, all P-values are guaranteed to be non-negative.
-      // (Computing running sums of pmfs and subtracting them from 1 yields some P < 0
-      // due to round-off errors.)
-      //
-      // All the pmfs, from k > maxObserved down to k=0, together sum to 1.
-      // Epsilon (implementation-defined, usually ca. 1e-16) is the largest value
-      // for which 1 + epsilon = 1 due to limited precision.
-      // So anytime we encounter a pmf <= epsilon,
-      // it means, due to limited precision, that the probability of observing any
-      // count k below that value is 1.
-      // Logically, that means the probability of observing any greater k is 0.
-      // Hence, for the largest observed count k,
-      // if its pmf <= epsilon,
-      // we can approximate its P-value by its pmf.
-      // (Yes, this approximation can wind up being too low by an order of magnitude or more,
-      // but if the true P-value is ca. 5e-15 and we approximate it as ca. 1e-16,
-      // will our error have any practical impact?)
-
-      curPMF = m_pmf(k, curPMF, m_pmfParams); // note: if pmf == binomial and k > binomial's n, 0 is returned
-      double running_pmf_sum_upper_tail(curPMF);
-      while (curPMF > numeric_limits<double>::epsilon()) // implementation-defined such that 1 + epsilon == 1
-        {
-          curPMF = m_pmf(++k, curPMF, m_pmfParams); // note: if pmf == binomial and ++k > binomial's n, 0 is returned
-          running_pmf_sum_upper_tail += curPMF;
-        }
-
-      // Now compute the P-values, going backward from the maximum # of counts observed.
-      for (k = m_distn.size() - 1; k > 0; k--)
-        {
-          running_pmf_sum_upper_tail += m_distn[k].pmf;
-          m_distn[k].pval = running_pmf_sum_upper_tail;
-        }
-      // There will be rounding errors in the P-values,
-      // which aren't particularly important, and can't be easily corrected.
-      // But we can at least ensure the one P-value we know with certainty has no rounding error in it.
-      m_distn[0].pval = 1.;
-      m_prev_k = m_distn.size() - 1; // this is the highest k value for which we've computed a pmf and P-value
-    }
-  else // don't compute pmfs for all observed k; only compute for this_k or for 0 <= k <= this_k
-    {
-      int k_Pval_goes_negative(-1);
-      double curPMF;
-
-      if (-1 == m_prev_k)
-        {
-          // Compute for 0 <= k <= this_k.
-          curPMF = prob0;
-          m_distn[0].pmf = curPMF;
-          m_distn[0].pval = 1.;
-          for (k = 1; k <= this_k; k++)
-            {
-              curPMF = m_pmf(k, curPMF, m_pmfParams); // note: if pmf == binomial and k > binomial's n, 0 is returned
-              m_distn[k].pmf = curPMF;
-              m_distn[k].pval = m_distn[k - 1].pval - m_distn[k - 1].pmf;
-              if (m_distn[k].pval < 0 && k_Pval_goes_negative < 0)
-                k_Pval_goes_negative = k;
-            }
-        }
-      else
-        {
-          // Compute for (highest k previously handled) < k <= this_k.
+      k_end = this_k;
+      if (-1 == m_prev_k) // compute for 0 <= k <= this_k.
+	m_distn[0].pmf = curPMF;
+      else // compute for (highest k previously handled) < k <= this_k.
+	{
           curPMF = m_distn[m_prev_k].pmf;
-          for (k = m_prev_k + 1; k <= this_k; k++)
-            {
-              curPMF = m_pmf(k, curPMF, m_pmfParams); // note: if pmf == binomial and k > binomial's n, 0 is returned
-              m_distn[k].pmf = curPMF;
-              m_distn[k].pval = m_distn[k - 1].pval - m_distn[k - 1].pmf;
-              if (m_distn[k].pval < 0 && k_Pval_goes_negative < 0)
-                k_Pval_goes_negative = k;
-            }
-        }
-
-      if (k_Pval_goes_negative > 0)
-        {
-          // Rounding error in 1 - sum(pmf) has yielded P < 0 at k = k_Pval_goes_negative.
-          // Recompute P-values by computing pmfs until we reach pmf <= epsilon (see the paragraph of comments above),
-          // and then summing pmfs backwards from there.
-          curPMF = m_pmf(k, curPMF, m_pmfParams); // note: if pmf == binomial and k > binomial's n, 0 is returned
-          double running_pmf_sum_upper_tail(curPMF);
-          while (curPMF > numeric_limits<double>::epsilon()) // implementation-defined such that 1 + epsilon == 1
-            {
-              curPMF = m_pmf(++k, curPMF, m_pmfParams); // note: if pmf == binomial and ++k > binomial's n, 0 is returned
-              running_pmf_sum_upper_tail += curPMF;
-            }
-          // Now compute the P-values, going backward from current value of k.
-          for (k = this_k; k >= k_Pval_goes_negative; k--)
-            {
-              running_pmf_sum_upper_tail += m_distn[k].pmf;
-              m_distn[k].pval = running_pmf_sum_upper_tail;
-            }
-        }
-      m_prev_k = this_k;
+	  k_begin = m_prev_k + 1;
+	}
     }
+  for (k = k_begin; k <= k_end; k++)
+    {
+      curPMF = m_pmf(k, curPMF, m_pmfParams); // note:  if pmf == binomial and k > binomial's n, 0 is returned
+      m_distn[k].pmf = curPMF;
+    }
+
+  // Because pmf(k) happens to be a multiple of pmf(k-1) for every k for each model (negative binomial, binomial, Poisson),
+  // we can write the P-value for observing k counts as
+  //
+  // pval(k) = pmf(k) * (1 + term(k+1) + term(k+2) + term(k+3) + ...),
+  //
+  // where the terms in the sum decrease monotonically with k.
+  // We can cap the sum at, say, 5 significant digits for pval(k),
+  // and then work backwards, filling in pval(k-1) = pmf(k-1) + pval(k),
+  // ending with pval(0) = 1.                                                                                                                                                                                      
+  k--; // reset so that k corresponds to the last pmf computed
+  int j = k;
+  double sum(1.), prevTerm(1.), curTerm;
+  const double SMALL_VALUE(5.0e-7); // restrict the correctness of the final P-value to ~5 significant digits
+  while ((curTerm = m_pmf(++j, prevTerm, m_pmfParams)) > SMALL_VALUE)
+    {
+      sum += curTerm;
+      prevTerm = curTerm;
+    }
+  m_distn[k].pval = m_distn[k].pmf * sum;
+  while (k > 1)
+    {
+      m_distn[k-1].pval = m_distn[k-1].pmf + m_distn[k].pval;
+      k--;
+    }
+  m_distn[0].pval = 1.; // explicitly set it to 1, to avoid potential round-off error
+
+  if (-1 != this_k)
+    m_prev_k = this_k;
+  else
+    m_prev_k = m_distn.size() - 1;
 
   m_runningSum_count_duringPrevComputation = m_runningSum_count;
   m_runningSum_countSquared_duringPrevComputation = m_runningSum_countSquared;
@@ -958,7 +897,7 @@ void BackgroundRegionManager::computePandFlush(PvalueManager& pm, SiteManager& s
   m_posL = m_posC = m_posR = -1;
   m_runningSum_count = m_runningSum_countSquared = m_numPtsInNullRegion = 0;
   m_runningSum_count_duringPrevComputation = m_runningSum_countSquared_duringPrevComputation = m_numPtsInNullRegion_duringPrevComputation = 0;
-  m_modeYval = m_modeXval = m_kcutoff = m_kTrendStart = m_kTrendReversal = -1;
+  m_modeYval = m_modeXval = m_kcutoff = m_kTrendReversal = -1;
   m_sliding = false;
   m_needToUpdate_kcutoff = true;
 
