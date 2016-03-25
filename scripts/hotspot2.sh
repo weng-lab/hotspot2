@@ -71,6 +71,7 @@ while getopts 'hc:e:f:F:m:n:p:s:w:O' opt ; do
       ;;
     m)
       MIN_HOTSPOT_WIDTH=$OPTARG
+      ;;
     n)
       SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE=$OPTARG
       ;;
