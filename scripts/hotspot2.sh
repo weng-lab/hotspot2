@@ -195,6 +195,7 @@ unstarch "$OUTFILE" \
         else { \
             if (widthL < minW || widthR < minW) { \
                 begPosR = begPosL; \
+                widthR = endPosR - begPosR; \
             } \
             else { \
                 print chrL, begPosL, endPosL; \
