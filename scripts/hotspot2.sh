@@ -230,7 +230,7 @@ echo "scale=4; $frags_in_hotspots / $num_frags" \
 echo "Generating peaks and density..."
 bash "$DENSPK_EXE" "$TMPDIR" "$WAVELETS_EXE" "$CUTCOUNTS" "$HOTSPOT_OUTFILE" "$CHROM_SIZES" "$DENSITY_OUTFILE" "$PEAKS_OUTFILE"
 
-TMPFRAGS="$(mktemp -t frags)"
+TMPFRAGS="$(mktemp -t fragsXXXXX)"
 unstarch "$DENSITY_OUTFILE" | cut -f1,2,3,5 > "$TMPFRAGS"
 bedGraphToBigWig \
   "$TMPFRAGS" \
