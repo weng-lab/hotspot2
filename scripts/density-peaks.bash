@@ -96,8 +96,14 @@ done
 echo "finalizing peaks..."
 cat $pkouts \
   | "$AWK_EXE" -v h=$halfbin '{m=($2+$3)/2; left=m-h; if(left < 0) left=0; print $1"\t"left"\t"m+h"\t"$4"\t"$5}' - \
+  | bedmap --echo --skip-unmapped --sweep-all --fraction-either 0.25 - $hotspots \
   | starch - \
   > $pk
+
+unstarch $pk \
+  | awk -v h=$halfbin 'BEGIN {OFS="\t"} ; { print $1, $2, $3, ".", "0", ".", $5, "-1", "-1", h }' \
+  | starch - \
+  > ${pk/.starch/.narrowpeaks.starch}
 
 echo "finalizing density..."
 starchcat $densouts \
