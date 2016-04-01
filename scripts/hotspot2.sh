@@ -172,9 +172,11 @@ bedops --ec -u "$CHROM_SIZES" \
     | starch - \
     > "$OUTFILE"
 
-# P-values of 0 will exist, and we don't want to do log(0).
-# Roughly 1e-308 is the smallest nonzero P usually seen,
-# so we can cap everything at that, or use a different tiny value.
+# We report the largest -log10(P) observed at any bp of a hotspot
+# as the "score" of that hotspot, where P is the site-specific P-value.
+# P-values of 0 will be encountered, and we don't want to do log(0).
+# Nonzero P-values as low as 1e-308 have been seen during testing.
+# We choose to cap all P-values at 1e-100, i.e. -log10(P) = 100.
 # The constant c below converts from natural logarithm to log10.
 
 echo "Thresholding..."
@@ -215,10 +217,10 @@ unstarch "$OUTFILE" \
     | bedmap --faster --sweep-all --delim "\t" --echo --count - "$CUTCOUNTS" \
     | "$AWK_EXE" 'BEGIN{OFS="\t";c=-0.4342944819}
         {
-          if($4>1e-308) {
+          if($4>1e-100) {
             print $1, $2, $3, "id-"NR, $5, ".",".",".", c*log($4)
           } else {
-            print $1, $2, $3, "id-"NR, $5, ".",".",".", "308"
+            print $1, $2, $3, "id-"NR, $5, ".",".",".", "100"
           }
         }' \
      | starch - \
