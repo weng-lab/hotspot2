@@ -1,4 +1,5 @@
 #! /bin/bash
+set -x -e -o pipefail
 
 usage(){
   cat >&2 <<__EOF__
@@ -48,8 +49,8 @@ BACKGROUND_WINDOW_SIZE=50001 # i.e., +/-25kb around each position
 MIN_HOTSPOT_WIDTH=50
 PVAL_DISTN_SIZE=1000000
 OVERLAPPING_OR_NOT="overlapping"
-CALL_THRESHOLD="0.10"
 HOTSPOT_FDR_THRESHOLD="0.05"
+CALL_THRESHOLD="$HOTSPOT_FDR_THRESHOLD"
 SEED=$RANDOM
 
 while getopts 'hc:e:f:F:m:n:p:s:w:O' opt ; do
@@ -142,7 +143,8 @@ base="$OUTDIR/$(basename "$BAM" .bam)"
 
 HOTSPOT_OUTFILE="$base.hotspots.fdr$HOTSPOT_FDR_THRESHOLD.starch"
 CUTCOUNTS="$base.cutcounts.starch"
-FRAGMENTS_OUTFILE=$base.fragments.sorted.starch
+FRAGMENTS_OUTFILE="$base.fragments.sorted.starch"
+TOTALCUTS_OUTFILE="$base.cleavage.total"
 OUTFILE="$base.allcalls.starch"
 DENSITY_OUTFILE="$base.density.starch"
 DENSITY_BW="$base.density.bw"
@@ -157,13 +159,13 @@ if [[ -z "$TMPDIR" ]] ;then
 fi
 
 echo "Cutting..."
-bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS" "$FRAGMENTS_OUTFILE"
+bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS" "$FRAGMENTS_OUTFILE" "$TOTALCUTS_OUTFILE"
 
 # don't unstarch $CUTCOUNTS and feed to $COUNTING_EXE since things like chrM may be in $CUTCOUNTS but not $CHROM_SIZES
 # run $CHROM_SIZES through bedops --ec -u for error checking
 echo "Running hotspot2..."
 bedops --ec -u "$CHROM_SIZES" \
-    | bedops -e 1 "$CUTCOUNTS" - \
+    | bedops --ec -e 1 "$CUTCOUNTS" - \
     | "$COUNTING_EXE" "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" "$OVERLAPPING_OR_NOT" "reportEachUnit" "$CHROM_SIZES" \
     | python "$EXCLUDE_EXE" "$EXCLUDE_THESE_REGIONS" \
     | "$HOTSPOT_EXE" --fdr_threshold "$CALL_THRESHOLD" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" \
@@ -179,51 +181,53 @@ echo "Thresholding..."
 unstarch "$OUTFILE" \
     | "$AWK_EXE" -v "threshold=$HOTSPOT_FDR_THRESHOLD" '($6 <= threshold)' \
     | bedops -m - \
-    | "$AWK_EXE" -v minW=$MIN_HOTSPOT_WIDTH 'BEGIN{FS="\t";OFS="\t"}{chrR=$1;begPosR=$2;endPosR=$3;widthR=endPosR-begPosR; \
-    if(NR>1) { \
-        if (chrR == chrL) { \
-            distLR = begPosR - endPosL; \
-        } \
-        else { \
-            distLR=999999999; \
-        } \
-        if (distLR > minW) { \
-            if (widthL >= minW) { \
-                print chrL, begPosL, endPosL; \
-            } \
-        } \
-        else { \
-            if (widthL < minW || widthR < minW) { \
-                begPosR = begPosL; \
-                widthR = endPosR - begPosR; \
+    | "$AWK_EXE" -v minW=$MIN_HOTSPOT_WIDTH 'BEGIN{FS="\t";OFS="\t"}{ \
+          chrR=$1;begPosR=$2;endPosR=$3;widthR=endPosR-begPosR; \
+          if(NR>1) { \
+            if (chrR == chrL) { \
+              distLR = begPosR - endPosL; \
             } \
             else { \
-                print chrL, begPosL, endPosL; \
+              distLR=999999999; \
             } \
-        } \
-    } \
-    chrL = chrR; \
-    begPosL = begPosR; \
-    endPosL = endPosR; \
-    widthL = widthR; \
-    }END{if(widthL >= minW){print chrL, begPosL, endPosL}}' \
+            if (distLR > minW) { \
+              if (widthL >= minW) { \
+                print chrL, begPosL, endPosL; \
+              } \
+            } \
+            else { \
+              if (widthL < minW || widthR < minW) { \
+                begPosR = begPosL; \
+                widthR = endPosR - begPosR; \
+              } \
+              else { \
+                print chrL, begPosL, endPosL; \
+              } \
+            } \
+          } \
+          chrL = chrR; \
+          begPosL = begPosR; \
+          endPosL = endPosR; \
+          widthL = widthR; \
+        } END{if(widthL >= minW){print chrL, begPosL, endPosL}}' \
+    | sort-bed --max-mem 1G - \
     | bedmap --faster --sweep-all --delim "\t" --echo --min - "$OUTFILE" \
-    | bedmap --faster --sweep-all --delim "\t" --echo --count - "$FRAGMENTS_OUTFILE" \
+    | bedmap --faster --sweep-all --delim "\t" --echo --count - "$CUTCOUNTS" \
     | "$AWK_EXE" 'BEGIN{OFS="\t";c=-0.4342944819}
-      {
-        if($4>1e-308) {
-          print $1, $2, $3, "id-"NR, $5, ".",".",".", c*log($4)
-        } else {
-          print $1, $2, $3, "id-"NR, $5, ".",".",".", "308"
-        }
-      }' \
+        {
+          if($4>1e-308) {
+            print $1, $2, $3, "id-"NR, $5, ".",".",".", c*log($4)
+          } else {
+            print $1, $2, $3, "id-"NR, $5, ".",".",".", "308"
+          }
+        }' \
      | starch - \
      > "$HOTSPOT_OUTFILE"
 
 echo "Calculating SPOT score..."
-num_frags=$(unstarch --elements "$FRAGMENTS_OUTFILE")
-frags_in_hotspots=$(bedops --header -e -1 "$FRAGMENTS_OUTFILE" "$HOTSPOT_OUTFILE" | wc -l)
-echo "scale=4; $frags_in_hotspots / $num_frags" \
+num_cleaves=$(cat "$TOTALCUTS_OUTFILE")
+cleaves_in_hotspots=$(bedops --ec -e -1 "$CUTCOUNTS" "$HOTSPOT_OUTFILE" | awk 'BEGIN{s=0} {s+=$5} END {print s}')
+echo "scale=4; $cleaves_in_hotspots / $num_cleaves" \
   | bc \
   > "$SPOT_SCORE_OUTFILE"
 
@@ -239,6 +243,7 @@ bedGraphToBigWig \
 
 echo "Done!"
 
+rm -f "$TMPFRAGS"
 if [[ $clean != 0 ]] ; then
   rm -rf "$TMPDIR"
 fi
