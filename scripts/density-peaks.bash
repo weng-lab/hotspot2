@@ -1,6 +1,10 @@
 #!/bin/bash
 set -x -e -o pipefail
 
+log(){
+  echo -e "$(date '+%Y-%m-%d %H:%M:%S')\t$*"
+}
+
 if [[ $# != 7 ]] ; then
   echo "Usage: $0 tmpdir wavelets-binary <tags.starch> <hotspots.starch> <chrom-sizes.starch> <density-out.starch> <peaks-out.starch>" >&2
   exit 2
@@ -32,12 +36,12 @@ boundary_type=reflected
 # Prefer mawk, if installed
 AWK_EXE=$(which mawk 2>/dev/null || which awk)
 
-echo "calculating densities and peak-finding..."
+log "Calculating densities and peak-finding..."
 pkouts=""
 densouts=""
 for chr in $(unstarch --list-chr $hotspots)
 do
-  printf "\tprocessing $chr\n"
+  log "\tProcessing $chr"
 
   ## Tag density, 150bp window, sliding every 20bp, used for peak-finding and display
   ##  --sweep-all used to prevent a possible broken pipe
@@ -93,7 +97,7 @@ do
   rm -f $tmpdir/.waves $tmpdir/.wave-pks.$chr $tmpdir/.hots-no-pks.$chr
 done
 
-echo "finalizing peaks..."
+log "Finalizing peaks..."
 cat $pkouts \
   | "$AWK_EXE" -v h=$halfbin '{m=($2+$3)/2; left=m-h; if(left < 0) left=0; print $1"\t"left"\t"m+h"\t"$4"\t"$5}' - \
   | bedmap --echo --skip-unmapped --sweep-all --fraction-either 0.25 - $hotspots \
@@ -105,7 +109,7 @@ unstarch $pk \
   | starch - \
   > ${pk/.starch/.narrowpeaks.starch}
 
-echo "finalizing density..."
+log "Finalizing density..."
 starchcat $densouts \
   > $density
 

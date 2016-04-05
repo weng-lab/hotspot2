@@ -42,7 +42,7 @@ __EOF__
 }
 
 log(){
-  echo -e "$(date)\t$*"
+  echo -e "$(date '+%Y-%m-%d %H:%M:%S')\t$*"
 }
 
 require_exes(){
@@ -228,9 +228,10 @@ echo "scale=4; $cleaves_in_hotspots / $num_cleaves" \
   | bc \
   > "$SPOT_SCORE_OUTFILE"
 
-log "Creating peaks and density..."
+#log "Creating peaks and density..."
 bash "$DENSPK_EXE" "$TMPDIR" "$WAVELETS_EXE" "$CUTCOUNTS" "$HOTSPOT_OUTFILE" "$CHROM_SIZES" "$DENSITY_OUTFILE" "$PEAKS_OUTFILE"
 
+log "Converting density to bigwig..."
 TMPFRAGS="$(mktemp -t fragsXXXXX)"
 unstarch "$DENSITY_OUTFILE" | cut -f1,2,3,5 > "$TMPFRAGS"
 bedGraphToBigWig \
