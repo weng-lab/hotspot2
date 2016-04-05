@@ -41,6 +41,9 @@ __EOF__
     exit 2
 }
 
+log(){
+  echo -e "$(date)\t$*"
+}
 
 EXCLUDE_THESE_REGIONS="/dev/null"
 CHROM_SIZES=""
@@ -106,26 +109,9 @@ fi
 BAM=$1
 OUTDIR=$2
 
-echo "checking system for modwt, BEDOPS, samtools..."
-if ! which modwt &>/dev/null; then
-  echo "Could not find modwt!"
-  exit -1
-elif ! which bedGraphToBigWig &>/dev/null; then
-  echo "Could not find bedGraphToBigWig!"
-  exit -1
-elif ! which bedmap &>/dev/null; then
-  echo "Could not find BEDOPS (bedmap)!"
-  exit -1
-elif ! which samtools &>/dev/null; then
-  echo "Could not find samtools!"
-  exit -1
-elif ! which hotspot2 &>/dev/null; then
-  echo "Could not find hotspot2!"
-  exit -1
-elif ! which tallyCountsInSmallWindows &>/dev/null; then
-  echo "Could not find tallyCountsInSmallWindows!"
-  exit -1
-fi
+log "Checking system for required executables..."
+require_exes modwt bedGraphToBigWig bedmap samtools hotspot2 tallyCountsInSmallWindows
+
 WAVELETS_EXE=$(which modwt)
 CUTCOUNT_EXE="$(dirname "$0")/cutcounts.bash"
 DENSPK_EXE="$(dirname "$0")/density-peaks.bash"
@@ -158,12 +144,12 @@ if [[ -z "$TMPDIR" ]] ;then
   clean=1
 fi
 
-echo "Cutting..."
+log "Generating cut counts..."
 bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS" "$FRAGMENTS_OUTFILE" "$TOTALCUTS_OUTFILE"
 
 # don't unstarch $CUTCOUNTS and feed to $COUNTING_EXE since things like chrM may be in $CUTCOUNTS but not $CHROM_SIZES
 # run $CHROM_SIZES through bedops --ec -u for error checking
-echo "Running hotspot2..."
+log "Running hotspot2..."
 bedops --ec -u "$CHROM_SIZES" \
     | bedops --ec -e 1 "$CUTCOUNTS" - \
     | "$COUNTING_EXE" "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" "$OVERLAPPING_OR_NOT" "reportEachUnit" "$CHROM_SIZES" \
@@ -179,7 +165,7 @@ bedops --ec -u "$CHROM_SIZES" \
 # We choose to cap all P-values at 1e-100, i.e. -log10(P) = 100.
 # The constant c below converts from natural logarithm to log10.
 
-echo "Thresholding..."
+log "Calling hotspots..."
 unstarch "$OUTFILE" \
     | "$AWK_EXE" -v "threshold=$HOTSPOT_FDR_THRESHOLD" '($6 <= threshold)' \
     | bedops -m - \
@@ -226,14 +212,14 @@ unstarch "$OUTFILE" \
      | starch - \
      > "$HOTSPOT_OUTFILE"
 
-echo "Calculating SPOT score..."
+log "Calculating SPOT score..."
 num_cleaves=$(cat "$TOTALCUTS_OUTFILE")
 cleaves_in_hotspots=$(bedops --ec -e -1 "$CUTCOUNTS" "$HOTSPOT_OUTFILE" | awk 'BEGIN{s=0} {s+=$5} END {print s}')
 echo "scale=4; $cleaves_in_hotspots / $num_cleaves" \
   | bc \
   > "$SPOT_SCORE_OUTFILE"
 
-echo "Generating peaks and density..."
+log "Creating peaks and density..."
 bash "$DENSPK_EXE" "$TMPDIR" "$WAVELETS_EXE" "$CUTCOUNTS" "$HOTSPOT_OUTFILE" "$CHROM_SIZES" "$DENSITY_OUTFILE" "$PEAKS_OUTFILE"
 
 TMPFRAGS="$(mktemp -t fragsXXXXX)"
@@ -243,7 +229,7 @@ bedGraphToBigWig \
   <(cut -f1,3 "$CHROM_SIZES") \
   "$DENSITY_BW"
 
-echo "Done!"
+log "Done!"
 
 rm -f "$TMPFRAGS"
 if [[ $clean != 0 ]] ; then
