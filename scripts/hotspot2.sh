@@ -45,6 +45,15 @@ log(){
   echo -e "$(date)\t$*"
 }
 
+require_exes(){
+  for x in "$@" ; do
+    if ! which "$x" &>/dev/null; then
+      echo "Could not find $x!"
+      exit -1
+    fi
+  done
+}
+
 EXCLUDE_THESE_REGIONS="/dev/null"
 CHROM_SIZES=""
 SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE=100 # i.e., 201bp regions
