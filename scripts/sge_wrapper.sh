@@ -52,7 +52,7 @@ hotspot_script="$(dirname "$0")/hotspot2.sh"
 # All arguments are passed to hotspot2.sh
 otherargs=()
 FDR=0.05
-while getopts ':hc:f:' opt ; do
+while getopts ':hc:e:f:F:m:n:p:s:w:O' opt ; do
   otherargs+=(-$opt $OPTARG)
   case "$opt" in
     h)
@@ -63,8 +63,6 @@ while getopts ':hc:f:' opt ; do
       ;;
     f)
       FDR=$OPTARG
-      ;;
-    ?)
       ;;
   esac
 done
@@ -94,7 +92,7 @@ for c in "${chroms[@]}" ; do
   joblist+=($jobname)
   submit "$jobname" <<__EOF__
   samtools view -h -1 "$bam" $c > "\$TMPDIR/$base.bam"
-  "$hotspot_script" "${otherargs[@]}" "\$TMPDIR/$base.bam" "$outdir.$c"
+  "$hotspot_script" ${otherargs[@]} "\$TMPDIR/$base.bam" "$outdir.$c"
   if [[ ! -s $outdir.$c/$base.density.starch ]] ;
     rm -f $outdir.$c/$base.density.starch  # Hack to avoid 0-size chrM
   fi
