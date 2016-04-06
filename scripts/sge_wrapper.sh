@@ -93,7 +93,7 @@ for c in "${chroms[@]}" ; do
   submit "$jobname" <<__EOF__
   samtools view -h -1 "$bam" $c > "\$TMPDIR/$base.bam"
   "$hotspot_script" ${otherargs[@]} "\$TMPDIR/$base.bam" "$outdir.$c"
-  if [[ ! -s $outdir.$c/$base.density.starch ]] ;
+  if [[ ! -s $outdir.$c/$base.density.starch ]] ; then
     rm -f $outdir.$c/$base.density.starch  # Hack to avoid 0-size chrM
   fi
 __EOF__
