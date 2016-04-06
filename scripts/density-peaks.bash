@@ -98,7 +98,7 @@ do
 done
 
 log "Finalizing peaks..."
-cat "$pkouts" \
+cat $pkouts \
   | "$AWK_EXE" -v "h=$halfbin" '{m=($2+$3)/2; left=m-h; if(left < 0) left=0; print $1"\t"left"\t"m+h"\t"$4"\t"$5}' - \
   | bedmap --echo --skip-unmapped --sweep-all --fraction-either 0.25 - "$hotspots" \
   | starch - \
@@ -110,7 +110,7 @@ unstarch "$pk" \
   > "${pk/.starch/.narrowpeaks.starch}"
 
 log "Finalizing density..."
-starchcat "$densouts" \
+starchcat $densouts \
   > "$density"
 
 exit 0
