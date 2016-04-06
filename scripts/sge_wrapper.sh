@@ -109,5 +109,5 @@ starch_merge   "hotspots.fdr$FDR.starch" ".htspths.$base.$$" "${joblist[@]}"
 starch_merge   peaks.starch              ".htsptpk.$base.$$" "${joblist[@]}"
 starch_merge   peaks.narrowpeaks.starch  ".htsptpk.$base.$$" "${joblist[@]}"
 
-density_bigwig                           ".htsptdb.$base.$$" ".htsptdn.$base.$$"
+density_bigwig                           ".htsptbw.$base.$$" ".htsptdn.$base.$$"
 SPOT_score                               ".htsptss.$base.$$" ".htsptcc.$base.$$" ".htspths.$base.$$"
