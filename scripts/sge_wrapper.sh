@@ -37,12 +37,17 @@ __EOF__
 }
 
 SPOT_score(){
+  export BAM=$bam
+  export CUTS=$outdir/$base.cutcounts.starch
+  export SPOTS=$outdir/$base.hotspots.fdr$FDR.starch
+  export OUT=$outdir/$base.SPOT.txt
   submit "$@" <<'__EOF__'
-  num_cleaves=$(samtools idxstats "$bam" | awk '{s+=$3} END{print s}')
-  cleaves_in_hotspots=$(bedops --ec -e -1 "$outdir/$base.cutcounts.starch" "$outdir/$base.hotspots.fdr$FDR.starch" | awk '{s=0} {s+=$5} END {print s}')
+  num_cleaves=$(samtools idxstats "$BAM" | awk '{s+=$3} END{print s}')
+  cleaves_in_hotspots=$(bedops --ec -e -1 "$CUTS" "$SPOTS" | awk '{s+=$5} END {print s}')
+  echo "$cleaves_in_hotspots / $num_cleavenum_cleaves"
   echo "scale=4; $cleaves_in_hotspots / $num_cleaves" \
     | bc \
-    > "$outdir/$base.SPOT.txt"
+    > "$OUT"
 __EOF__
 }
 
