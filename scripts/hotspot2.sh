@@ -178,10 +178,13 @@ bedops --ec -u "$CHROM_SIZES" \
 # Nonzero P-values as low as 1e-308 have been seen during testing.
 # We choose to cap all P-values at 1e-100, i.e. -log10(P) = 100.
 # The constant c below converts from natural logarithm to log10.
+# To combat issues awk sometimes has with numbers below 1e-300,
+# we parse the FDR initially as a string, and assume anything below 1e-100
+# passes the user's threshold.
 
 echo "Thresholding..."
 unstarch "$OUTFILE" \
-    | "$AWK_EXE" -v "threshold=$HOTSPOT_FDR_THRESHOLD" '($6 <= threshold)' \
+    | "$AWK_EXE" -v "threshold=$HOTSPOT_FDR_THRESHOLD" '{split($6,y,"-");if(length(y)!=1 && y[2]>100){print $1"\t"$2"\t"$3}else{if($6<=threshold){print $1"\t"$2"\t"$3}}}' \
     | bedops -m - \
     | "$AWK_EXE" -v minW=$MIN_HOTSPOT_WIDTH 'BEGIN{FS="\t";OFS="\t"}{ \
           chrR=$1;begPosR=$2;endPosR=$3;widthR=endPosR-begPosR; \
@@ -215,13 +218,14 @@ unstarch "$OUTFILE" \
     | sort-bed --max-mem 1G - \
     | bedmap --faster --sweep-all --delim "\t" --echo --min - "$OUTFILE" \
     | bedmap --faster --sweep-all --delim "\t" --echo --count - "$CUTCOUNTS" \
-    | "$AWK_EXE" 'BEGIN{OFS="\t";c=-0.4342944819}
-        {
-          if($4>1e-100) {
-            print $1, $2, $3, "id-"NR, $5, ".","-1","-1", c*log($4)
-          } else {
-            print $1, $2, $3, "id-"NR, $5, ".","-1","-1", "100"
-          }
+    | "$AWK_EXE" 'BEGIN{OFS="\t";c=-0.4342944819} \
+        { \
+          split($4,y,"-"); \
+          if(length(y)!=1 && y[2]>100) { \
+            print $1, $2, $3, "id-"NR, $5, ".","-1","-1", "100" \
+          } else { \
+            print $1, $2, $3, "id-"NR, $5, ".","-1","-1", c*log($4) \
+          } \
         }' \
      | starch - \
      > "$HOTSPOT_OUTFILE"
