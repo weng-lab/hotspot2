@@ -215,11 +215,15 @@ unstarch "$OUTFILE" \
     | bedmap --faster --sweep-all --delim "\t" --echo --count - "$CUTCOUNTS" \
     | "$AWK_EXE" 'BEGIN{OFS="\t";c=-0.4342944819} \
         { \
-          split($4,y,"-"); \
-          if(length(y)!=1 && y[2]>100) { \
+          if ("0" == $4) { \
             print $1, $2, $3, "id-"NR, $5, ".","-1","-1", "100" \
           } else { \
-            print $1, $2, $3, "id-"NR, $5, ".","-1","-1", c*log($4) \
+             split($4,y,"-"); \
+             if(length(y)!=1 && y[2]>100) { \
+               print $1, $2, $3, "id-"NR, $5, ".","-1","-1", "100" \
+             } else { \
+               print $1, $2, $3, "id-"NR, $5, ".","-1","-1", c*log($4) \
+             } \
           } \
         }' \
      | starch - \
