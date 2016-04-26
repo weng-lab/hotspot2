@@ -718,6 +718,7 @@ void BackgroundRegionManager::computeStats(const int& this_k)
   m = static_cast<double>(m_runningSum_count) / N;
   v = (static_cast<double>(m_runningSum_countSquared) - N * m * m) / (N - 1.);
   m_pmfParams.clear();
+  static bool warningAlreadyIssued(false);
 
   // Set up the negative binomial model.
   // Double-check that m < v; if m >= v, which is extremely unlikely,
@@ -728,6 +729,16 @@ void BackgroundRegionManager::computeStats(const int& this_k)
       prob0 = exp(-m);
       m_pmfParams.push_back(m);
       m_pmf = &nextProbPoisson;
+      if (!warningAlreadyIssued)
+	{
+	  cerr << "Warning:  In the region from " << m_posL << '-' << m_posR
+	       << " on the current chromosome, all counts used for statistics were 0, or all were 0 except one was 1.\n"
+	       << "This generally should not happen.  If this region is unmappable or problematic for other reasons,\n"
+	       << "it would almost certainly be best to filter it out of the input.\n"
+	       << "There may be other such regions in the input; this warning will only be issued once during this run."
+	       << endl;
+	  warningAlreadyIssued = true;
+	}
     }
   else
     {
@@ -882,7 +893,6 @@ void BackgroundRegionManager::computePandFlush(PvalueManager& pm, SiteManager& s
           double pval = m_distn[m_sitesInRegion_rightHalf.front().count].pval;
           if (!pm.addObsP(pval))
             {
-              pm.computeFDRvals();
               sm.getFDRvalsAndWriteAndFlush(pm); // resets pm
               pm.addObsP(pval);
             }
@@ -890,8 +900,6 @@ void BackgroundRegionManager::computePandFlush(PvalueManager& pm, SiteManager& s
         }
       m_sitesInRegion_rightHalf.pop_front();
     }
-
-  sm.getFDRvalsAndWriteAndFlush(pm); // resets pm
 
   m_distn.clear();
   m_posL = m_posC = m_posR = -1;
@@ -957,7 +965,6 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
           double pval = m_distn[it->count].pval;
           if (!pvm.addObsP(pval))
             {
-              pvm.computeFDRvals();
               sm.getFDRvalsAndWriteAndFlush(pvm); // resets pvm
               pvm.addObsP(pval);
             }
@@ -977,7 +984,6 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
           double pval = m_distn[m_sitesInRegion_rightHalf.front().count].pval;
           if (!pvm.addObsP(pval))
             {
-              pvm.computeFDRvals();
               sm.getFDRvalsAndWriteAndFlush(pvm); // resets pvm
               pvm.addObsP(pval);
             }
@@ -1169,7 +1175,6 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
 
           if (!pvm.addObsP(pval))
             {
-              pvm.computeFDRvals();
               sm.getFDRvalsAndWriteAndFlush(pvm); // resets pvm
               pvm.addObsP(pval);
             }
@@ -1236,7 +1241,6 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
           double pval = m_distn[m_sitesInRegion_rightHalf.front().count].pval;
           if (!pvm.addObsP(pval))
             {
-              pvm.computeFDRvals();
               sm.getFDRvalsAndWriteAndFlush(pvm); // resets pvm
               pvm.addObsP(pval);
             }
@@ -1576,7 +1580,6 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
       double pval = m_distn[m_sitesInRegion_rightHalf.front().count].pval;
       if (!pvm.addObsP(pval))
         {
-          pvm.computeFDRvals();
           sm.getFDRvalsAndWriteAndFlush(pvm); // resets pvm
           pvm.addObsP(pval);
         }
@@ -1679,6 +1682,7 @@ bool parseAndProcessInput(const int& windowSize, const int& pvalDistnSize, const
     }
 
   brm.computePandFlush(pvm, sm); // See explanatory comment above.
+  sm.getFDRvalsAndWriteAndFlush(pvm);
 
   return true;
 }
