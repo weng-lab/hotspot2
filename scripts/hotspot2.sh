@@ -215,7 +215,7 @@ unstarch "$OUTFILE" \
     | bedmap --faster --sweep-all --delim "\t" --echo --count - "$CUTCOUNTS" \
     | "$AWK_EXE" 'BEGIN{OFS="\t";c=-0.4342944819} \
         { \
-          if ("0" == $4) { \
+          if (0 == $4) { \
             print $1, $2, $3, "id-"NR, $5, ".","-1","-1", "100" \
           } else { \
              split($4,y,"-"); \
