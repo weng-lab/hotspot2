@@ -848,28 +848,14 @@ void BackgroundRegionManager::computePandFlush(PvalueManager& pm, SiteManager& s
   if (m_distn.empty())
     return;
 
-  bool needToComputePMFs(false);
-
-  if (!m_sliding)
+  if (!m_sliding || m_needToUpdate_kcutoff)
     {
       // Moving averages need to be computed, m_kcutoff needs to be determined,
       // mean and variance need to be computed, and all pmfs need to be computed.
       findCutoff();
-      needToComputePMFs = true;
-    }
-  else // determine whether we need to compute mean, variance, pmfs, P-values
-    {
-      if (m_runningSum_countSquared != m_runningSum_countSquared_duringPrevComputation || m_runningSum_count != m_runningSum_count_duringPrevComputation || m_numPtsInNullRegion != m_numPtsInNullRegion_duringPrevComputation)
-        needToComputePMFs = true;
-      if (m_needToUpdate_kcutoff)
-        {
-          findCutoff();
-          needToComputePMFs = true;
-        }
     }
 
-  if (needToComputePMFs)
-    computeStats(-1); // -1 means "for all observed values of k"
+  computeStats(-1); // -1 means "for all observed values of k"
 
   while (!m_sitesInRegion_leftHalf.empty())
     {
@@ -878,7 +864,6 @@ void BackgroundRegionManager::computePandFlush(PvalueManager& pm, SiteManager& s
           double pval = m_distn[m_sitesInRegion_leftHalf.front().count].pval;
           if (!pm.addObsP(pval))
             {
-              pm.computeFDRvals();
               sm.getFDRvalsAndWriteAndFlush(pm); // resets pm
               pm.addObsP(pval);
             }
