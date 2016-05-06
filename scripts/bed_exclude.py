@@ -45,7 +45,7 @@ with open(sys.argv[1]) as x:
             continue
 
         # If bed entirely covers exclude, print out first part and modify
-        if int(ba[2]) >= int(xa[1]) and int(ba[1]) <= int(xa[1]):
+        if int(ba[2]) >= int(xa[1]) and int(ba[1]) < int(xa[1]):
             print("\t".join([ba[0], ba[1], xa[1], ba[3], ba[4]]))
             ba[1] = xa[2]
             continue
