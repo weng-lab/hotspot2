@@ -430,7 +430,7 @@ void BackgroundRegionManager::setBounds(const int posL, const int posR)
 {
   if (posR <= posL)
     {
-      cerr << "Error:  BackgroundManager::setBounds() received posL = "
+      cerr << "Error:  BackgroundRegionManager::setBounds() received posL = "
            << posL << " and posR = " << posR << "; must have posL <= posR."
            << endl
            << endl;
@@ -475,10 +475,10 @@ void BackgroundRegionManager::add(const Site& s)
       sc.numOccs = 1;
       m_distn.push_back(sc);
     }
-  if (m_distn[s.count].numOccs >= m_modeYval)
+  if (m_distn.size() >= m_MAlength && m_distn[s.count].MAxN != -1 && m_distn[s.count].MAxN >= m_modeYval)
     {
       m_modeXval = s.count;
-      m_modeYval = m_distn[s.count].numOccs;
+      m_modeYval = m_distn[s.count].MAxN;
     }
 }
 
@@ -490,8 +490,8 @@ void BackgroundRegionManager::findCutoff()
   // Our idea is to identify a cutoff, when one exists,
   // which essentially marks the upper bound of observed monotonic decrease.
   // (Observations beyond the cutoff are then "predominantly signal," rather than noise.)
-  // We do this by starting at the mode,
-  // and looking at moving averages (MAs) of occurrence counts beyond it.
+  // We do this by starting just beyond the mode of the
+  // moving averages (MAs) of occurrence counts.
   // Whenever we encounter a global minimum (among values seen so far) in the MAs,
   // we measure whether a subsequent MA is substantially greater,
   // i.e. above some threshold (e.g., an increase of 50% or more).
@@ -507,12 +507,13 @@ void BackgroundRegionManager::findCutoff()
 
   int kcutoff_uponEntry = m_kcutoff;
 
-  if (m_modeXval + m_MAlength >= static_cast<int>(m_distn.size()))
+  if (static_cast<int>(m_distn.size()) < m_MAlength)
     {
       // Too few distinct count values were observed to compute a moving average of length MAlength;
       // set the "cutoff" to the largest observed count, i.e., use all data, don't "cut off" any points.
       m_kcutoff = m_distn.size() - 1;
       m_minMAxN = m_kTrendReversal = -1;
+      m_modeXval = m_modeYval = -1;
       m_kvalsWithMinMAxN.clear();
       m_needToUpdate_kcutoff = false;
 
@@ -560,8 +561,8 @@ void BackgroundRegionManager::findCutoff()
       return;
     }
 
-  int sum(0), idxL(m_modeXval), idxR(m_modeXval + m_MAlength - 1);
-  int idxC = m_modeXval + m_MAlength / 2; // integer division
+  int sum(0), idxL(m_modeXval+1), idxR(m_modeXval+1 + m_MAlength - 1); // these idxL and idxR values will be ignored/replaced if !m_sliding
+  int idxC = m_modeXval+1 + m_MAlength / 2; // integer division; see commendt directly above re: idxL and idxR
   pair<int, int> xyCurMAxN;
   bool useGlobMin(false);
 
@@ -581,34 +582,45 @@ void BackgroundRegionManager::findCutoff()
       for (int i = idxL; i <= idxR; i++)
         sum += m_distn[i].numOccs;
       m_distn[idxC].MAxN = sum;
-      while (idxL < m_modeXval) // we'll compute the remaining values below
+      if (-1 == m_modeYval || m_distn[idxC].MAxN > m_modeYval)
+	{
+	  m_modeXval = idxC;
+	  m_modeYval = m_distn[idxC].MAxN;
+	}
+      while (idxR < m_distn.size() -1)
         {
           idxC++;
-          idxR++; // guaranteed to not run off the end of the vector
+          idxR++;
           sum -= m_distn[idxL].numOccs;
           sum += m_distn[idxR].numOccs;
           m_distn[idxC].MAxN = sum;
+	  if (m_distn[idxC].MAxN > m_modeYval)
+	    {
+	      m_modeXval = idxC;
+	      m_modeYval = m_distn[idxC].MAxN;
+	    }
           idxL++;
-        }
-      // Now idxL == m_modeXval, idxC == m_modeXval + m_MAlength/2, idxR == m_modeXval + m_MAlength - 1.
-      // That is, the moving average centered on idxC is computed from all idxL <= k <= idxR.
+	}
+      if (idxL > m_modeXval+1)
+	{
+	  idxL = m_modeXval+1;
+	  idxC = idxL + m_MAlength/2;
+	  idxR = idxL + m_MAlength - 1;
+	}
+      // else the "while" loop below won't get executed
     }
   m_kvalsWithMinMAxN.clear();
-  m_kvalsWithMinMAxN.insert(idxC);
-  m_minMAxN = m_distn[idxC].MAxN;
+  if (idxR != static_cast<int>(m_distn.size()) - 1)
+    {
+      m_kvalsWithMinMAxN.insert(idxC); // idxC == m_modeXval+1 + m_MAlength/2 here, whether !m_sliding or m_sliding==true
+      m_minMAxN = m_distn[idxC].MAxN;
+    }
   double minMAxN = static_cast<double>(m_minMAxN);
 
   idxR++;
   while (idxR < static_cast<int>(m_distn.size()))
     {
       idxC++;
-      if (!m_sliding)
-        {
-          // Need to compute the moving averages (times the number of terms).
-          sum -= m_distn[idxL].numOccs;
-          sum += m_distn[idxR].numOccs;
-          m_distn[idxC].MAxN = sum;
-        }
       xyCurMAxN.first = idxC;
       xyCurMAxN.second = m_distn[idxC].MAxN;
       if (static_cast<double>(xyCurMAxN.second) > m_thresholdRatio * minMAxN)
@@ -625,7 +637,7 @@ void BackgroundRegionManager::findCutoff()
               // m_kcutoff will be set following the exit from the loop.
               m_kvalsWithMinMAxN.clear();
               m_kvalsWithMinMAxN.insert(xyCurMAxN.first); // k == idxC
-              m_minMAxN = 0; // number of observations of k == idxC
+              m_minMAxN = 0;
               useGlobMin = true;
               break;
             }
@@ -650,7 +662,7 @@ void BackgroundRegionManager::findCutoff()
   // Return the maximum observed count as the "cutoff."
   if (!useGlobMin)
     {
-      m_kcutoff = m_distn.size() - 1;
+      m_kcutoff = static_cast<int>(m_distn.size()) - 1;
       m_kTrendReversal = -1;
       m_kvalsWithMinMAxN.clear();
       m_minMAxN = -1;
@@ -669,23 +681,6 @@ void BackgroundRegionManager::findCutoff()
     m_kTrendReversal = xyCurMAxN.first; // where we determined the monotonically decreasing trend to have reversed
   else
     m_kTrendReversal = -1;
-
-  // Also compute the rest of the moving averages if necessary.
-  if (!m_sliding)
-    {
-      while (idxR < static_cast<int>(m_distn.size()))
-        {
-          sum -= m_distn[idxL++].numOccs;
-          sum += m_distn[idxR++].numOccs;
-          m_distn[++idxC].MAxN = sum;
-        }
-      // Ensure the MAxN values at the end of the list,
-      // where too few neighboring values exist to compute MAxN values,
-      // are set to -1 for bookkeeping's sake.
-      idxR--;
-      while (idxR != idxC)
-        m_distn[idxR--].MAxN = -1;
-    }
 
   m_needToUpdate_kcutoff = false;
   if (m_kcutoff != kcutoff_uponEntry)
@@ -1008,7 +1003,6 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
       if (m_sitesInRegion_leftHalf.front().pos == m_posL)
         {
           int prevModeXval(m_modeXval);
-          bool newMinMAxN(false), newDuplicateMinMAxN(false);
           const int k = m_sitesInRegion_leftHalf.front().count;
 
           m_sitesInRegion_leftHalf.pop_front();
@@ -1020,6 +1014,28 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
               m_numPtsInNullRegion--;
             }
           m_distn[k].numOccs--;
+          // Update moving averages (technically, moving sums, not averages, because we're not dividing them by N).
+          idxMin = max(k - m_MAlength / 2, m_MAlength / 2);
+          idxMax = min(k + m_MAlength / 2, static_cast<int>(m_distn.size()) - 1 - m_MAlength / 2);
+          for (int i = idxMin; i <= idxMax; i++)
+	    {
+	      m_distn[i].MAxN -= 1;
+	      if (i == m_modeXval) // note that m_modeXval could be -1, in which case i can't equal it
+		{
+		  m_modeYval--;
+		  // Check whether this subtraction reveals a new mode to the left or right of it.
+		  for (int j = m_MAlength / 2; j < static_cast<int>(m_distn.size()) - m_MAlength/2; j++)
+		    {
+		      if (m_distn[j].MAxN > m_modeYval)
+			{
+			  m_modeXval = j;
+			  m_modeYval = m_distn[j].MAxN;
+			  m_needToUpdate_kcutoff = true;
+			}
+		    }
+		}
+	    }
+
           if (0 == m_distn[k].numOccs && k == static_cast<int>(m_distn.size()) - 1)
             {
               // The bin at the end of the count distribution/histogram is now empty.
@@ -1029,96 +1045,57 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
                 m_distn.pop_back();
               // Because we've deleted 1+ bins from the end of m_distn,
               // 1+ moving averages at the end of m_distn are now undefined.
-              // (It's very rare that this will occur.)
+              // (This will occur infrequently.)
               // Mark them as such for bookkeeping's sake.
-              for (int i = static_cast<int>(m_distn.size()) - 1; i > static_cast<int>(m_distn.size()) - m_MAlength / 2 && i > -1; i--)
+              for (int i = static_cast<int>(m_distn.size()) - 1; i > static_cast<int>(m_distn.size()) -1 - m_MAlength / 2 && i > -1; i--)
                 m_distn[i].MAxN = -1;
               // If we deleted the bin corresponding to m_kcutoff,
               // update m_kcutoff so that it's within range.
               if (m_kcutoff >= static_cast<int>(m_distn.size()))
-                m_kcutoff = m_distn.size() - 1;
-              // There's essentially no chance we've deleted the mode,
-              // because that can only happen if all k values below it
-              // have exactly 0 observations or 1 observation in the entire region.
-            }
-          if (k == m_modeXval)
-            {
-              m_modeYval--; // decrement brings it in sync with the decrement to m_distn[k].numOccs above
-              // Determine whether removing this observation changes the mode,
-              for (int i = 0; i <= m_kcutoff; i++)
-                {
-                  if (i == k)
-                    continue;
-                  if (m_distn[i].numOccs > m_distn[k].numOccs || (m_distn[i].numOccs == m_distn[k].numOccs && i > k))
-                    {
-                      m_modeXval = i;
-                      m_modeYval = m_distn[i].numOccs;
-                    }
-                }
-            }
-          // Update moving averages (technically, moving sums, not averages, because we're not dividing them by N).
-          idxMin = max(k - m_MAlength / 2, m_MAlength / 2);
-          idxMax = min(k + m_MAlength / 2, static_cast<int>(m_distn.size()) - 1 - m_MAlength / 2);
-          for (int i = idxMin; i <= idxMax; i++)
-            {
-              m_distn[i].MAxN -= 1;
-              if (m_minMAxN != -1 && m_kTrendReversal != -1 && m_modeXval == prevModeXval && i < m_kTrendReversal && i >= m_modeXval + m_MAlength / 2)
-                {
-                  // The test for a changed m_modeXval is here because if it has changed,
-                  // then we're just going to call findCutoff(), which will take care of everything,
-                  // so there's no need to do any work here.
-                  if (m_distn[i].MAxN < m_minMAxN)
-                    {
-                      m_minMAxN = m_distn[i].MAxN;
-                      m_kvalsWithMinMAxN.clear();
-                      m_kvalsWithMinMAxN.insert(i);
-                      newMinMAxN = true;
-                    }
-                  else if (m_distn[i].MAxN == m_minMAxN)
-                    {
-                      m_kvalsWithMinMAxN.insert(i);
-                      newDuplicateMinMAxN = true; // it's possible for newDup... and newMinMAxN to both be true
-                    }
-                }
+		{
+		  m_kcutoff = m_distn.size() - 1;
+		  m_minMAxN = -1;
+		  m_kTrendReversal = -1;
+		}
+	      // Bring idxMax back within range if necessary, now that m_distn.size() has decreased.
+	      if (idxMax > static_cast<int>(m_distn.size()) - 1 - m_MAlength / 2)
+		idxMax = static_cast<int>(m_distn.size()) - 1 - m_MAlength / 2; // idxMax might now be < idxMin; ok if so
             }
 
-          if (m_modeXval != prevModeXval)
-            m_needToUpdate_kcutoff = true;
-          else
-            {
-              if (newMinMAxN || newDuplicateMinMAxN)
-                {
-                  set<int>::const_iterator it = m_kvalsWithMinMAxN.end();
-                  it--;
-                  // If there's a k > m_kcutoff whose MAxN is just as low as the MAxN at m_kcutoff,
-                  // or if the MAxN value at m_kcutoff is no longer sufficiently below the MAxN value at m_kTrendReversal,
-                  // then flag m_kcutoff as needing to be updated.
-                  // (Note that m_kTrendReversal is guaranteed to not equal -1 if we reach here.)
-                  if (*it != m_kcutoff || m_distn[m_kcutoff].MAxN * m_thresholdRatio >= m_distn[m_kTrendReversal].MAxN)
-                    m_needToUpdate_kcutoff = true;
-                }
-              else
-                {
-                  if (idxMin <= m_kTrendReversal && m_kTrendReversal <= idxMax) // obviously false if m_kTrendReversal == -1
-                    {
-                      // The MAxN value at m_kTrendReversal has decreased,
-                      // while the MAxN value at m_kcutoff has remained the same.
-                      // Test whether the new histogram bin height difference
-                      // now falls below the threshold.
-                      if (m_distn[m_kcutoff].MAxN * m_thresholdRatio >= m_distn[m_kTrendReversal].MAxN)
-                        m_needToUpdate_kcutoff = true;
-                    }
-                  // Else:
-                  // The mode didn't change,
-                  // the local minimum/minima didn't change,
-                  // and m_kTrendReversal didn't change,
-                  // therefore m_kcutoff does NOT change.
-                  // (If, upon entry, the highest bin had k == m_kcutoff,
-                  // and that bin had numOccs==1, and it was deleted,
-                  // then m_kcutoff was changed above, but there's nothing further to do.)
-                }
-            }
-
+	  if (m_modeXval != prevModeXval ||
+	      static_cast<int>(m_distn.size()) - 1 == m_kcutoff)
+	    m_needToUpdate_kcutoff = true; // for safety's sake, at least
+	  else
+	    {
+	      const int halfMAlength = m_MAlength / 2;
+	      if (0 == m_minMAxN)
+		{
+		  if (k + halfMAlength > m_modeXval+1 && k - halfMAlength < m_kcutoff)
+		    {
+		      // Check whether the subtraction has created a new instance of 0 == m_minMAxN at some k < m_kcutoff.
+		      idxMin = max(k - halfMAlength, halfMAlength);
+		      idxMax = min(k + halfMAlength, static_cast<int>(m_distn.size()) - 1 - halfMAlength);
+		      for (int i = idxMax; i >= idxMin; i--)
+			{
+			  if (0 == m_distn[i].MAxN)
+			    {
+			      m_kcutoff = i;
+			      needToComputePMFs = true;
+			    }
+			}
+		    }
+		}
+	      else
+		{
+		  if (-1 == m_kTrendReversal)
+		    {
+		      cerr << "Coding error:  m_kTrendReversal should NOT be -1 on line " << __LINE__ << "." << endl;
+		      exit(1);
+		    }
+		  if (k + halfMAlength > m_modeXval+1 && k - halfMAlength <= m_kTrendReversal)
+		    m_needToUpdate_kcutoff = true; // possibly overkill, but worth doing for safety's sake
+		}
+	    }
         } // end of "if m_sitesInRegion_leftHalf.front().pos == m_posL"
 
       // When we have an observation for the central position,
@@ -1265,6 +1242,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
           m_numPtsInNullRegion--;
         }
       m_distn[k_outgoing].numOccs--;
+
       if (0 == m_distn[k_outgoing].numOccs && k_outgoing == static_cast<int>(m_distn.size()) - 1)
         {
           // The bin at the end of the count distribution/histogram is now empty.
@@ -1274,18 +1252,48 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
             m_distn.pop_back();
           // Because we've deleted 1+ bins from the end of m_distn,
           // 1+ moving averages at the end of m_distn are now undefined.
-          // (It's very rare that this will occur.)
+          // (This will happen infrequently.)
           // Mark them as such for bookkeeping's sake.
-          for (int i = static_cast<int>(m_distn.size()) - 1; i >= static_cast<int>(m_distn.size()) - m_MAlength / 2 && i > -1; i--)
+          for (int i = static_cast<int>(m_distn.size()) - 1; i > static_cast<int>(m_distn.size()) -1 - m_MAlength / 2 && i > -1; i--)
             m_distn[i].MAxN = -1;
+	  if (origDistnSize >= m_MAlength && static_cast<int>(m_distn.size()) < m_MAlength)
+	    {
+	      // There are now too few bins to compute a MAxN of length m_MAlength, so the mode is undefined.
+	      m_modeXval = m_modeYval = -1;
+	    }
           // If we deleted the bin corresponding to m_kcutoff,
           // update m_kcutoff so that it's within range.
           if (m_kcutoff >= static_cast<int>(m_distn.size()))
-            m_kcutoff = m_distn.size() - 1;
-          // There's essentially no chance we've deleted the mode,
-          // because that can only happen if all k values below it
-          // have exactly 0 observations or 1 observation in the entire region.
+	    {
+	      m_kcutoff = static_cast<int>(m_distn.size()) - 1;
+	      m_minMAxN = -1;
+	      m_kTrendReversal = -1;
+	    }
+	  // Now redefine "origDistnSize" so that it's correct with respect to k_incoming, which might replace deleted bin(s) and add new ones.
+	  origDistnSize = static_cast<int>(m_distn.size());
         }
+
+      // Update moving averages (technically, moving sums, not averages, because we're not dividing them by N).
+      idxMin = max(k_outgoing - m_MAlength / 2, m_MAlength / 2);
+      idxMax = min(k_outgoing + m_MAlength / 2, static_cast<int>(m_distn.size()) - 1 - m_MAlength / 2);
+      for (int i = idxMin; i <= idxMax; i++)
+	{
+	  m_distn[i].MAxN -= 1;
+	  if (i == m_modeXval)
+	    {
+	      m_modeYval--;
+	      // There's a small chance that this subtraction has moved the mode leftward or rightward.
+	      for (int j = m_MAlength / 2; j < static_cast<int>(m_distn.size()) - m_MAlength / 2; j++)
+		{
+		  if (m_distn[j].MAxN > m_modeYval || (j > m_modeXval && m_distn[j].MAxN == m_modeYval))
+		    {
+		      m_modeXval = j;
+		      m_modeYval = m_distn[j].MAxN;
+		    }
+		}
+	    }
+	}
+
       // Moving averages (times N, i.e. MAxN values) will be updated below.
       // Investigating whether the mode, m_kcutoff, or m_kTrendReversal were affected
       // will also be done below, after processing the incoming site.
@@ -1315,13 +1323,18 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
         m_distn.push_back(sc); // create bins for unobserved interior values, e.g., count = 5 but only 0,1,2 have been observed so far
       sc.numOccs = 1;
       m_distn.push_back(sc);
-      if (startHere >= m_MAlength / 2)
+      if (startHere >= m_MAlength / 2) // then we have at least one valid MAxN value that we will now update
         {
           int sum(0);
           int idxL(startHere - m_MAlength / 2), idxC(startHere), idxR(startHere + m_MAlength / 2);
           for (int i = idxL; i <= idxR; i++)
             sum += m_distn[i].numOccs;
           m_distn[idxC].MAxN = sum;
+	  if (m_distn[idxC].MAxN > m_modeYval) // also true when m_modeYval == m_modeXval == -1
+	    {
+	      m_modeXval = idxC;
+	      m_modeYval = m_distn[idxC].MAxN;
+	    }
           firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
           lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
           idxR++;
@@ -1331,6 +1344,11 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
               sum += m_distn[idxR++].numOccs;
               idxC++;
               m_distn[idxC].MAxN = sum;
+	      if (m_distn[idxC].MAxN > m_modeYval) // also true when m_modeYval == m_modeXval == -1
+		{
+		  m_modeXval = idxC;
+		  m_modeYval = m_distn[idxC].MAxN;
+		}
               lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
             }
         }
@@ -1348,6 +1366,11 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
           for (int i = idxL; i <= idxR; i++)
             sum += m_distn[i].numOccs;
           m_distn[idxC].MAxN = sum;
+	  if (m_distn[idxC].MAxN > m_modeYval) // recall m_modeYval == -1 if there had been too few bins to compute a MAxN value
+	    {
+	      m_modeXval = idxC;
+	      m_modeYval = m_distn[idxC].MAxN;
+	    }
           lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
           firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
           idxC--;
@@ -1357,39 +1380,17 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
               sum -= m_distn[idxR--].numOccs;
               sum += m_distn[idxL--].numOccs;
               m_distn[idxC].MAxN = sum;
+	      if (m_distn[idxC].MAxN > m_modeYval) // >, not >=, because in the event of a tie, we want to choose the rightmost mode
+		{
+		  m_modeXval = idxC;
+		  m_modeYval = m_distn[idxC].MAxN;
+		}
               firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
               idxC--;
             }
         }
     }
   m_posR++;
-
-  // Update the mode if necessary.
-  // Recall that if we've reached this point,
-  // k_incoming != k_outgoing.
-  if (k_incoming == m_modeXval)
-    m_modeYval++; // we added 1 observation to this bin
-  if (k_outgoing == m_modeXval) // hence k_outgoing != -1, i.e. yes there's an outgoing observation
-    m_modeYval--; // we removed 1 observation from this bin
-  if (m_distn[k_incoming].numOccs > m_modeYval || (m_distn[k_incoming].numOccs == m_modeYval && k_incoming > m_modeXval))
-    {
-      m_modeXval = k_incoming;
-      m_modeYval = m_distn[k_incoming].numOccs;
-    }
-  if (m_modeYval < origModeYval)
-    {
-      // Unlikely, but the mode may have changed due to the removal of an observation of k_outgoing.
-      for (int i = 0; i <= m_kcutoff; i++)
-        {
-          if (i == k_outgoing)
-            continue;
-          if (m_distn[i].numOccs > m_modeYval)
-            {
-              m_modeYval = m_distn[i].numOccs;
-              m_modeXval = i;
-            }
-        }
-    }
 
   // If one or more bins were added to the end of m_distn because k_incoming was >= m_distn.size(),
   // even if bins were deleted due to k_outgoing and replaced due to k_incoming,
@@ -1403,130 +1404,104 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
       for (int i = idxMin; i <= idxMax; i++)
         {
           m_distn[i].MAxN += 1;
-          // Possibilities:
-          // 1. Unique local minimum (at m_kcutoff) has had its height increased.
-          // 2. One of 2+ duplicates of local minimum is no longer a local minimum.
-          // 3. locMin unchanged, height at k < m_kTrendReversal now exceeds threshold, hence m_kTrendReversal changes.
-          // 4. Heights at both m_kcutoff and m_kTrendReversal have increased, but m_kTrendReversal no longer exceeds the threshold.
-          //    E.g., height at m_kcutoff was 7 and height at m_kTrendReversal was 11 (>1.5*7),
-          //    but now the height at m_kcutoff is 8 and the height at m_kTrendReversal is 12 (<=1.5*8).
-          //
-          // Restrict to the cases in which the mode hasn't changed,
-          // because if it changes, we'll call findCutoff() below, which will take care of everything.
-          if (m_minMAxN != -1 && m_kTrendReversal != -1 && m_modeXval == origModeXval && i < m_kTrendReversal && i >= m_modeXval + m_MAlength / 2)
-            {
-              set<int>::iterator it = m_kvalsWithMinMAxN.find(i);
-              if (it != m_kvalsWithMinMAxN.end())
-                {
-                  if (m_kvalsWithMinMAxN.size() > 1)
-                    {
-                      // The MAxN value at m_kcutoff has increased and thus no longer shares the m_minMAxN value,
-                      // or a formerly equal MAxN value at some m_modeXval < k < m_kcutoff has increased.
-                      // m_minMAxN doesn't increase because at least one k remains with that MAxN value.
-                      if (i == m_kcutoff)
-                        m_needToUpdate_kcutoff = true;
-                      m_kvalsWithMinMAxN.erase(it);
-                    }
-                  else
-                    {
-                      // m_kcutoff is a unique local minimum, and its height has just increased.
-                      // Most likely it's still a unique local minimum,
-                      // but it's possible that m_kcutoff will change.
-                      // Let findCutoff() figure that out.
-                      m_needToUpdate_kcutoff = true;
-                      m_minMAxN += 1;
-                    }
-                }
-              else
-                {
-                  // m_kTrendReversal might have changed
-                  if (i > m_kcutoff && i < m_kTrendReversal && m_distn[m_kcutoff].MAxN * m_thresholdRatio < m_distn[i].MAxN)
-                    m_kTrendReversal = i; // m_kcutoff doesn't change
-                  else if (i == m_kTrendReversal && m_distn[m_kcutoff].MAxN * m_thresholdRatio >= m_distn[i].MAxN)
-                    m_needToUpdate_kcutoff = true;
-                }
-            }
-        }
+	  if (i == m_modeXval)
+	    m_modeYval++;
+	  else
+	    {
+	      if (m_distn[i].MAxN > m_modeYval)
+		{
+		  m_modeXval = i;
+		  m_modeYval = m_distn[i].MAxN;
+		}
+	      else
+		if (i > m_modeXval && m_distn[i].MAxN == m_modeYval)
+		  {
+		    // The addition has moved the mode rightward.
+		    m_modeXval = i;
+		    m_modeYval = m_distn[i].MAxN;
+		  }
+	    }
+	}
     }
   else
     {
-      // k_incoming is larger than any count observed in the rest of the region.
-      // If it lies beyond m_kTrendReversal, then there's nothing to do,
-      // but if there is no m_kTrendReversal, then we need to add this observation
-      // to the null distribution.
-      if (-1 == m_kTrendReversal)
-        m_needToUpdate_kcutoff = true;
+      // Bins were added to the end of m_distn; if m_kcutoff encompassed all of m_distn before, it needs to encompass the new bin(s) too.
+      if (origDistnSize - 1 == m_kcutoff)
+	m_needToUpdate_kcutoff = true;
     }
 
-  // Now update the moving averages (times N) for k_outgoing, when present.
-  if (k_outgoing != -1)
-    {
-      idxMin = max(k_outgoing - m_MAlength / 2, m_MAlength / 2);
-      idxMax = min(k_outgoing + m_MAlength / 2, static_cast<int>(m_distn.size()) - 1 - m_MAlength / 2);
-      for (int i = idxMin; i <= idxMax; i++)
-        {
-          if (firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins != -1 && firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins <= i && i <= lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins)
-            continue; // m_distn[i].MAxN is already up-to-date, and m_needToUpdate_kcutoff == true
-          m_distn[i].MAxN -= 1;
-          if (m_minMAxN != -1 && m_kTrendReversal != -1 && m_modeXval == origModeXval && i < m_kTrendReversal && i >= m_modeXval + m_MAlength / 2)
-            {
-              // The test for a changed m_modeXval is here because if it has changed,
-              // then we're just going to call findCutoff(), which will take care of everything,
-              // so there's no need to do any work here.
-              if (m_distn[i].MAxN < m_minMAxN)
-                {
-                  m_minMAxN = m_distn[i].MAxN;
-                  m_kvalsWithMinMAxN.clear();
-                  m_kvalsWithMinMAxN.insert(i);
-                  haveNewMinMAxN = true;
-                }
-              else if (m_distn[i].MAxN == m_minMAxN)
-                {
-                  m_kvalsWithMinMAxN.insert(i);
-                  haveNewDuplicateMinMAxN = true; // it's possible for newDup... and newMinMAxN to both be true
-                }
-            }
-        }
-    }
+  // At this point, all MAxN values have been updated.
 
-  if (m_modeXval != origModeXval)
-    m_needToUpdate_kcutoff = true;
-  else
+  if (!m_needToUpdate_kcutoff)
     {
-      if (haveNewMinMAxN || haveNewDuplicateMinMAxN)
-        {
-          set<int>::const_iterator it = m_kvalsWithMinMAxN.end();
-          it--;
-          // If there's a k > m_kcutoff whose MAxN is just as low as the MAxN at m_kcutoff,
-          // or if the MAxN value at m_kcutoff is no longer sufficiently below the MAxN value at m_kTrendReversal,
-          // then flag m_kcutoff as needing to be updated.
-          // (Note that m_kTrendReversal is guaranteed to not equal -1 if we reach here.)
-          if (*it != m_kcutoff || m_distn[m_kcutoff].MAxN * m_thresholdRatio >= m_distn[m_kTrendReversal].MAxN)
-            m_needToUpdate_kcutoff = true;
-        }
+      // If the mode has changed, recompute everything.
+      if (m_modeXval != origModeXval)
+	m_needToUpdate_kcutoff = true;
       else
-        {
-          if (k_outgoing != -1 && // note: idxMin and idxMax were set a few lines above if k_outgoing != -1
-              idxMin <= m_kTrendReversal
-              && m_kTrendReversal <= idxMax) // obviously false if -1 == m_kTrendReversal
-            {
-              // The MAxN value at m_kTrendReversal has decreased,
-              // while the MAxN value at m_kcutoff has remained the same.
-              // Test whether the new histogram bin height difference
-              // now falls below the threshold.
-              if (m_distn[m_kcutoff].MAxN * m_thresholdRatio >= m_distn[m_kTrendReversal].MAxN)
-                m_needToUpdate_kcutoff = true;
-            }
-          // Else:
-          // The mode didn't change, and the removal of k_outgoing
-          // didn't change the local minimum/minima or m_kTrendReversal,
-          // therefore if k_outgoing was removed, that removal did NOT change m_kcutoff.
-          // (If, upon entry, the highest bin had k == m_kcutoff,
-          // and that bin had numOccs==1, and it was deleted,
-          // then m_kcutoff was changed above, but there's nothing further to do.)
-          // If the addition of k_incoming might have impacted m_kcutoff,
-          // m_needToUpdate_kcutoff was set to true while processing the MAxN values impacted by k_incoming.
-        }
+	{
+	  if (static_cast<int>(m_distn.size()) - 1 == m_kcutoff)
+	    m_needToUpdate_kcutoff = true; // Probably m_kcutoff won't change, but do a full check to make sure.
+	  else
+	    {
+	      if (0 == m_minMAxN)
+		{
+		  if (m_distn[m_kcutoff].MAxN != 0)
+		    {
+		      // m_kcutoff probably won't change, but it no longer has MAxN==0, so recompute.
+		      m_needToUpdate_kcutoff = true;
+		    }
+		  else
+		    {
+		      int halfMAlength = m_MAlength / 2;
+		      if (k_outgoing != -1 && k_outgoing + halfMAlength > m_modeXval+1 && k_outgoing - halfMAlength < m_kcutoff)
+			{
+			  // There's a tiny chance that the subtraction caused a bin left of m_kcutoff
+			  // to get its MAxN value reduced to 0, thereby moving m_kcutoff leftward.
+			  idxMin = max(k_outgoing - halfMAlength, halfMAlength);
+			  idxMax = min(k_outgoing + halfMAlength, static_cast<int>(m_distn.size()) - 1 - halfMAlength);
+			  for (int i = idxMax; i >= idxMin; i--)
+			    {
+			      if (0 == m_distn[i].MAxN)
+				{
+				  m_kcutoff = i;
+				  needToComputePMFs = true;
+				}
+			    }
+			}
+		    }
+		}
+	      else
+		{
+		  if (-1 == m_kTrendReversal)
+		    {
+		      cerr << "Coding error:  m_kTrendReversal should NOT be -1 on line " << __LINE__ << "." << endl;
+
+
+
+		      cerr << "k_c = " << m_kcutoff << ", m_minMAxN = " << m_minMAxN << ", m_modeXval = "
+			   << m_modeXval << ", m_modeYval = " << m_modeYval
+			   << ", k_out = " << k_outgoing << ", k_in = " << k_incoming
+			   << ", [" << m_posL << ',' << m_posC << ',' << m_posR << ']' << endl;
+		      cerr << "m_distn = {{0," << m_distn[0].numOccs << ',' << m_distn[0].MAxN;
+		      for (int q = 1; q < m_distn.size(); q++)
+			cerr << "}, {" << q << ',' << m_distn[q].numOccs << ',' << m_distn[q].MAxN;
+		      cerr << "}}" << endl;
+
+
+
+		      exit(1);
+		    }
+		  // Prior to k_incoming and, when present, k_outgoing,
+		  // m_kcutoff's MAxN was a "global minimum so far" and m_kTrendReversal's MAxN
+		  // was sufficiently higher to define a "trend reversal."
+		  int halfMAlength = m_MAlength / 2;
+		  if (k_incoming + halfMAlength > m_modeXval+1 && k_incoming - halfMAlength < m_kTrendReversal)
+		    m_needToUpdate_kcutoff = true; // possibly overkill, but worth doing for safety's sake
+		  if (k_outgoing != -1 && k_outgoing + halfMAlength > m_modeXval+1 && k_outgoing - halfMAlength <= m_kTrendReversal)
+		    m_needToUpdate_kcutoff = true; // possibly overkill, but worth doing for safety's sake
+		}
+	    }
+	}
     }
 
   // When we have an observation for the central position,
