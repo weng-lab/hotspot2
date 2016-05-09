@@ -417,7 +417,7 @@ BackgroundRegionManager::BackgroundRegionManager(void)
   m_runningSum_count_duringPrevComputation = m_runningSum_countSquared_duringPrevComputation = m_numPtsInNullRegion_duringPrevComputation = 0;
   m_kcutoff = m_modeYval = m_modeXval = -1;
   m_MAlength = 5; // see explanation in findCutoff()
-  m_thresholdRatio = 1.50; // see explanation in findCutoff(); could instead try 1.4...
+  m_thresholdRatio = 1.33; // see explanation in findCutoff(); could instead try 1.4. 1.5 seems to be too high.
   m_sliding = false;
   m_needToUpdate_kcutoff = true;
 
@@ -494,7 +494,7 @@ void BackgroundRegionManager::findCutoff()
   // moving averages (MAs) of occurrence counts.
   // Whenever we encounter a global minimum (among values seen so far) in the MAs,
   // we measure whether a subsequent MA is substantially greater,
-  // i.e. above some threshold (e.g., an increase of 50% or more).
+  // i.e. above some threshold (e.g., an increase of 33.3% or more).
   // If such an extreme increase is observed,
   // then we declare that "global minimum so far" to be the cutoff value.
   // If we exhaust the set of observations and no such increase is detected,
@@ -1474,21 +1474,20 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
 		{
 		  if (-1 == m_kTrendReversal)
 		    {
-		      cerr << "Coding error:  m_kTrendReversal should NOT be -1 on line " << __LINE__ << "." << endl;
-
-
-
+		      cerr << "Coding error:  m_kTrendReversal should NOT be -1 on line " << __LINE__ << " of BRM::slideAndCompute()." << endl;
 		      cerr << "k_c = " << m_kcutoff << ", m_minMAxN = " << m_minMAxN << ", m_modeXval = "
 			   << m_modeXval << ", m_modeYval = " << m_modeYval
 			   << ", k_out = " << k_outgoing << ", k_in = " << k_incoming
-			   << ", [" << m_posL << ',' << m_posC << ',' << m_posR << ']' << endl;
+			   << ", region = [" << m_posL << ',' << m_posC << ',' << m_posR << ']' << endl;
 		      cerr << "m_distn = {{0," << m_distn[0].numOccs << ',' << m_distn[0].MAxN;
 		      for (int q = 1; q < m_distn.size(); q++)
-			cerr << "}, {" << q << ',' << m_distn[q].numOccs << ',' << m_distn[q].MAxN;
+			{
+			  if (0 == (q+1) % 5)
+			    cerr << "},\n{" << q << ',' << m_distn[q].numOccs << ',' << m_distn[q].MAxN;
+			  else
+			    cerr << "}, {" << q << ',' << m_distn[q].numOccs << ',' << m_distn[q].MAxN;
+			}
 		      cerr << "}}" << endl;
-
-
-
 		      exit(1);
 		    }
 		  // Prior to k_incoming and, when present, k_outgoing,
