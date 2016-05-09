@@ -412,15 +412,17 @@ bool loadChromSizes(ifstream& infile, map<string, int>& chromSizes, const char* 
         goto MissingData;
       chromSizes[chrom] = atoi(p); // Assume 2-column input:  chromosome name, length.
       fieldnum++;
-      if (p = strtok(NULL, "\t"))
+      if ((p = strtok(NULL, "\t")))
 	{
 	  // Assume BED-format input:  chromosome name, start coordinate, end coordinate; ignore any additional columns.
 	  int chrLength(atoi(p));
 	  if ((0 != chromSizes[chrom] && 1 != chromSizes[chrom]) || chrLength <= chromSizes[chrom])
-	    cerr << "Error:  " << exeName << " encountered unexpected or invalid BED input on line "
-		 << linenum << " of the file of chromosome names and sizes.\n"
-		 << "Expected 2-column input (name and size) or BED format (either name, 1, size or name, 0, size)." << endl;
-	  return false;
+	    {
+	      cerr << "Error:  " << exeName << " encountered unexpected or invalid BED input on line "
+		   << linenum << " of the file of chromosome names and sizes.\n"
+		   << "Expected 2-column input (name and size) or BED format (either name, 1, size or name, 0, size)." << endl;
+	      return false;
+	    }
 	  chromSizes[chrom] = chrLength;
 	}
     }
