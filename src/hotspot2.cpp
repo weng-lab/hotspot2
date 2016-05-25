@@ -1458,7 +1458,6 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
          m_sitesInRegion_rightHalf.front().hasPval = true;
         }
 
-      m_pCurChrom = NULL;
       return;
     }
 
