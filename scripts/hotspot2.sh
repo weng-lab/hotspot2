@@ -125,6 +125,7 @@ WAVELETS_EXE=$(which modwt)
 CUTCOUNT_EXE="$(dirname "$0")/cutcounts.bash"
 DENSPK_EXE="$(dirname "$0")/density-peaks.bash"
 EXCLUDE_EXE="$(dirname "$0")/bed_exclude.py"
+MERGE_EXE="$(dirname "$0")/hsmerge.sh"
 COUNTING_EXE=tallyCountsInSmallWindows
 HOTSPOT_EXE=hotspot2
 
@@ -178,56 +179,12 @@ bedops --ec -u "$CHROM_SIZES" \
 # passes the user's threshold.
 
 log "Calling hotspots..."
-unstarch "$OUTFILE" \
-    | "$AWK_EXE" -v "threshold=$HOTSPOT_FDR_THRESHOLD" '{split($6,y,"-");if(length(y)!=1 && y[2]>100){print $1"\t"$2"\t"$3}else{if($6<=threshold){print $1"\t"$2"\t"$3}}}' \
-    | bedops -m - \
-    | "$AWK_EXE" -v minW=$MIN_HOTSPOT_WIDTH 'BEGIN{FS="\t";OFS="\t"}{ \
-          chrR=$1;begPosR=$2;endPosR=$3;widthR=endPosR-begPosR; \
-          if(NR>1) { \
-            if (chrR == chrL) { \
-              distLR = begPosR - endPosL; \
-            } \
-            else { \
-              distLR=999999999; \
-            } \
-            if (distLR > minW) { \
-              if (widthL >= minW) { \
-                print chrL, begPosL, endPosL; \
-              } \
-            } \
-            else { \
-              if (widthL < minW || widthR < minW) { \
-                begPosR = begPosL; \
-                widthR = endPosR - begPosR; \
-              } \
-              else { \
-                print chrL, begPosL, endPosL; \
-              } \
-            } \
-          } \
-          chrL = chrR; \
-          begPosL = begPosR; \
-          endPosL = endPosR; \
-          widthL = widthR; \
-        } END{if(widthL >= minW){print chrL, begPosL, endPosL}}' \
-    | sort-bed --max-mem 1G - \
-    | bedmap --faster --sweep-all --delim "\t" --echo --min - "$OUTFILE" \
-    | bedmap --faster --sweep-all --delim "\t" --echo --count - "$CUTCOUNTS" \
-    | "$AWK_EXE" 'BEGIN{OFS="\t";c=-0.4342944819} \
-        { \
-          if (0 == $4) { \
-            print $1, $2, $3, "id-"NR, $5, ".","-1","-1", "100" \
-          } else { \
-             split($4,y,"-"); \
-             if(length(y)!=1 && y[2]>100) { \
-               print $1, $2, $3, "id-"NR, $5, ".","-1","-1", "100" \
-             } else { \
-               print $1, $2, $3, "id-"NR, $5, ".","-1","-1", c*log($4) \
-             } \
-          } \
-        }' \
-     | starch - \
-     > "$HOTSPOT_OUTFILE"
+
+"$MERGE_EXE" \
+  -c "$CUTCOUNTS"
+  -f "$HOTSPOT_FDR_THRESHOLD" \
+  "$OUTFILE" \
+  "$HOTSPOT_OUTFILE"
 
 unstarch "$HOTSPOT_OUTFILE" \
   | awk 'BEGIN {OFS="\t"} { if ( $5 > 1000 ) { $5 = 1000 } print; }' \
