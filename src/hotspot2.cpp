@@ -1252,49 +1252,49 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
 		    m_distn[i].MAxN = -1;
 		  // If we deleted the bin corresponding to m_kcutoff,
 		  // update m_kcutoff so that it's within range.
+		  // Let findCutoff() do this, so all appropriate variables will get updated.
 		  if (m_kcutoff >= m_sampledDataDistnSize)
-		    {
-		      m_kcutoff = m_sampledDataDistnSize - 1;
-		      m_minMAxN = -1;
-		      m_kTrendReversal = -1;
-		    }
+		    m_needToUpdate_kcutoff = true;
 		  // Bring idxMax back within range if necessary, now that m_distn.size() has decreased.
 		  if (idxMax > m_sampledDataDistnSize - 1 - m_MAlength / 2)
 		    idxMax = m_sampledDataDistnSize - 1 - m_MAlength / 2; // idxMax might now be < idxMin; ok if so
 		}
 
-	      if (m_modeXval != prevModeXval ||
-		  m_sampledDataDistnSize - 1 == m_kcutoff)
-		m_needToUpdate_kcutoff = true; // for safety's sake, at least
-	      else
+	      if (!m_needToUpdate_kcutoff) // then perform some additional tests and maybe set m_needToUpdate_kcutoff = true
 		{
-		  const int halfMAlength = m_MAlength / 2;
-		  if (0 == m_minMAxN)
+		  if (m_modeXval != prevModeXval ||
+		      m_sampledDataDistnSize - 1 == m_kcutoff)
+		    m_needToUpdate_kcutoff = true; // for safety's sake, at least
+		  else
 		    {
-		      if (k + halfMAlength > m_modeXval+1 && k - halfMAlength < m_kcutoff)
+		      const int halfMAlength = m_MAlength / 2;
+		      if (0 == m_minMAxN)
 			{
-			  // Check whether the subtraction has created a new instance of 0 == m_minMAxN at some k < m_kcutoff.
-			  idxMin = max(k - halfMAlength, halfMAlength);
-			  idxMax = min(k + halfMAlength, m_sampledDataDistnSize - 1 - halfMAlength);
-			  for (int i = idxMax; i >= idxMin; i--)
+			  if (k + halfMAlength > m_modeXval+1 && k - halfMAlength < m_kcutoff)
 			    {
-			      if (0 == m_distn[i].MAxN)
+			      // Check whether the subtraction has created a new instance of 0 == m_minMAxN at some k < m_kcutoff.
+			      idxMin = max(k - halfMAlength, halfMAlength);
+			      idxMax = min(k + halfMAlength, m_sampledDataDistnSize - 1 - halfMAlength);
+			      for (int i = idxMax; i >= idxMin; i--)
 				{
-				  m_kcutoff = i;
-				  needToComputePMFs = true;
+				  if (0 == m_distn[i].MAxN)
+				    {
+				      m_needToUpdate_kcutoff = true;
+				      break;
+				    }
 				}
 			    }
 			}
-		    }
-		  else
-		    {
-		      if (-1 == m_kTrendReversal)
+		      else
 			{
-			  cerr << "Coding error:  m_kTrendReversal should NOT be -1 on line " << __LINE__ << "." << endl;
-			  exit(1);
+			  if (-1 == m_kTrendReversal)
+			    {
+			      cerr << "Coding error:  m_kTrendReversal should NOT be -1 on line " << __LINE__ << "." << endl;
+			      exit(1);
+			    }
+			  if (k + halfMAlength > m_modeXval+1 && k - halfMAlength <= m_kTrendReversal)
+			    m_needToUpdate_kcutoff = true; // possibly overkill, but worth doing for safety's sake
 			}
-		      if (k + halfMAlength > m_modeXval+1 && k - halfMAlength <= m_kTrendReversal)
-			m_needToUpdate_kcutoff = true; // possibly overkill, but worth doing for safety's sake
 		    }
 		}
 	    } // end of "if (updateDistn)"
@@ -1521,12 +1521,9 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
 	    }
           // If we deleted the bin corresponding to m_kcutoff,
           // update m_kcutoff so that it's within range.
+	  // Let findCutoff() do this, so all appropriate variables will get updated.
           if (m_kcutoff >= m_sampledDataDistnSize)
-	    {
-	      m_kcutoff = m_sampledDataDistnSize - 1;
-	      m_minMAxN = -1;
-	      m_kTrendReversal = -1;
-	    }
+	    m_needToUpdate_kcutoff = true;
 	  // Now redefine "origDistnSize" so that it's correct with respect to k_incoming, which might replace deleted bin(s) and add new ones.
 	  origDistnSize = m_sampledDataDistnSize;
         }
@@ -1731,11 +1728,19 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
 				{
 				  if (0 == m_distn[i].MAxN)
 				    {
-				      m_kcutoff = i;
-				      needToComputePMFs = true;
+				      m_needToUpdate_kcutoff = true;
+				      break;
 				    }
 				}
 			    }
+			  // There's a tiny chance that an addition far to the left of m_kcutoff (where MAxN == 0)
+			  // raised an MAxN value high enough that it is now higher than an MAxN value to its left
+			  // by more than the threshold.  This has been observed: m_kcutoff = 86 where MAxN = 0,
+			  // k = 47 has MAxN = 7, k = 51 has MAxN = 9 with 9 < 7*m_thresholdRatio, and then
+			  // k_incoming raises 51's MAxN from 9 to 10 without touching 47's MAxN,
+			  // so that 10 > 7*m_thesholdRatio and m_kcutoff needs to get set to k=47.
+			  if (m_modeXval+1 < k_incoming - halfMAlength && k_incoming + halfMAlength < m_kcutoff)
+			    m_needToUpdate_kcutoff = true;
 			}
 		    }
 		  else
