@@ -181,7 +181,7 @@ bedops --ec -u "$CHROM_SIZES" \
 log "Calling hotspots..."
 
 "$MERGE_EXE" \
-  -c "$CUTCOUNTS"
+  -c "$CUTCOUNTS" \
   -f "$HOTSPOT_FDR_THRESHOLD" \
   "$OUTFILE" \
   "$HOTSPOT_OUTFILE"
