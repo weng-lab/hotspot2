@@ -264,9 +264,9 @@ double PvalueManager::FDR(const double& pval)
   if (pval > 0.99)
     {
       if (pval < 1.1)
-	return 1.;
+        return 1.;
       else
-	return -1.; // signals a window with too few observations in it, with variance = 0
+        return -1.; // signals a window with too few observations in it, with variance = 0
     }
 
   map<double, double>::const_iterator itUpper = m_p_to_q.lower_bound(pval); // lower bound is >= pval
@@ -291,6 +291,7 @@ public:
   void setSampled(const bool& sampled);
 #endif
   void getFDRvalsAndWriteAndFlush(PvalueManager& pvm);
+
 private:
   SiteManager(); // require the above constructor to be used
   SiteManager(const SiteManager&); // ditto
@@ -405,6 +406,7 @@ public:
   void add(const Site& s);
   void computePandFlush(PvalueManager& pm, SiteManager& sm);
   void slideAndCompute(const Site& s, PvalueManager& pm, SiteManager& sm);
+
 private:
   BackgroundRegionManager(void); // require use of the constructor with 1 argument
   BackgroundRegionManager(const BackgroundRegionManager&); // ditto
@@ -451,7 +453,7 @@ BackgroundRegionManager::BackgroundRegionManager(const int& samplingInterval, co
   m_runningSum_count = m_runningSum_countSquared = m_numPtsInNullRegion = 0;
   m_runningSum_count_duringPrevComputation = m_runningSum_countSquared_duringPrevComputation = m_numPtsInNullRegion_duringPrevComputation = 0;
   m_kcutoff = m_modeYval = m_modeXval = -1;
-  m_MAlength = MAlength;  // see explanation in findCutoff(); 5 is good when samplingInterval = 1, 15 is good when windowSize/samplingInterval ~= 250
+  m_MAlength = MAlength; // see explanation in findCutoff(); 5 is good when samplingInterval = 1, 15 is good when windowSize/samplingInterval ~= 250
   m_thresholdRatio = 1.33; // see explanation in findCutoff(); could instead try 1.4. 1.5 seems to be too high, 1.2 seems to be too low.
   m_sliding = false;
   m_needToUpdate_kcutoff = true;
@@ -499,8 +501,7 @@ void BackgroundRegionManager::add(const Site& s)
   sd.hasPval = false;
   sd.sampled = false;
 
-  if (1 != m_samplingInterval &&
-      s.endPos > m_nextPosToSample)
+  if (1 != m_samplingInterval && s.endPos > m_nextPosToSample)
     m_nextPosToSample = s.endPos;
 
   // Alternatively, "sampling" could be performed strictly at multiples of m_samplingInterval.
@@ -518,34 +519,33 @@ void BackgroundRegionManager::add(const Site& s)
   // it will need to increase by a greater multiple of m_samplingInterval when a large gap is present in the data
   // (an unmappable region or otherwise restricted/withheld region).
 
-  if (1 == m_samplingInterval ||
-      s.endPos == m_nextPosToSample)
+  if (1 == m_samplingInterval || s.endPos == m_nextPosToSample)
     {
       sd.sampled = true;
       m_nextPosToSample += m_samplingInterval;
       // Add the incoming site's count to the distribution of counts observed in this region.
       if (s.count < static_cast<int>(m_distn.size()))
-	m_distn[s.count].numOccs++;
+        m_distn[s.count].numOccs++;
       else
-	{
-	  StatsForCount sc;
-	  sc.numOccs = 0;
-	  sc.pmf = sc.pval = -1.;
-	  sc.MAxN = -1; // don't compute moving averages until/unless we're sliding, for efficiency's sake
-	  while (static_cast<int>(m_distn.size()) < s.count)
-	    {
-	      m_distn.push_back(sc); // create bins for unobserved interior values, e.g., count = 5 but only 0,1,2 have been observed so far
-	      m_sampledDataDistnSize++;
-	    }
-	  sc.numOccs = 1;
-	  m_distn.push_back(sc);
-	  m_sampledDataDistnSize++;
-	}
+        {
+          StatsForCount sc;
+          sc.numOccs = 0;
+          sc.pmf = sc.pval = -1.;
+          sc.MAxN = -1; // don't compute moving averages until/unless we're sliding, for efficiency's sake
+          while (static_cast<int>(m_distn.size()) < s.count)
+            {
+              m_distn.push_back(sc); // create bins for unobserved interior values, e.g., count = 5 but only 0,1,2 have been observed so far
+              m_sampledDataDistnSize++;
+            }
+          sc.numOccs = 1;
+          m_distn.push_back(sc);
+          m_sampledDataDistnSize++;
+        }
       if (m_distn.size() >= m_MAlength && m_distn[s.count].MAxN != -1 && m_distn[s.count].MAxN >= m_modeYval)
-	{
-	  m_modeXval = s.count;
-	  m_modeYval = m_distn[s.count].MAxN;
-	}
+        {
+          m_modeXval = s.count;
+          m_modeYval = m_distn[s.count].MAxN;
+        }
     }
 
   // Add the incoming site to the appropriate deque of observed positions.
@@ -634,8 +634,8 @@ void BackgroundRegionManager::findCutoff()
       return;
     }
 
-  int sum(0), idxL(m_modeXval+1), idxR(m_modeXval+1 + m_MAlength - 1); // these idxL and idxR values will be ignored/replaced if !m_sliding
-  int idxC = m_modeXval+1 + m_MAlength / 2; // integer division; see commendt directly above re: idxL and idxR
+  int sum(0), idxL(m_modeXval + 1), idxR(m_modeXval + 1 + m_MAlength - 1); // these idxL and idxR values will be ignored/replaced if !m_sliding
+  int idxC = m_modeXval + 1 + m_MAlength / 2; // integer division; see commendt directly above re: idxL and idxR
   pair<int, int> xyCurMAxN;
   bool useGlobMin(false);
 
@@ -656,30 +656,30 @@ void BackgroundRegionManager::findCutoff()
         sum += m_distn[i].numOccs;
       m_distn[idxC].MAxN = sum;
       if (-1 == m_modeYval || m_distn[idxC].MAxN > m_modeYval)
-	{
-	  m_modeXval = idxC;
-	  m_modeYval = m_distn[idxC].MAxN;
-	}
-      while (idxR < m_sampledDataDistnSize -1)
+        {
+          m_modeXval = idxC;
+          m_modeYval = m_distn[idxC].MAxN;
+        }
+      while (idxR < m_sampledDataDistnSize - 1)
         {
           idxC++;
           idxR++;
           sum -= m_distn[idxL].numOccs;
           sum += m_distn[idxR].numOccs;
           m_distn[idxC].MAxN = sum;
-	  if (m_distn[idxC].MAxN > m_modeYval)
-	    {
-	      m_modeXval = idxC;
-	      m_modeYval = m_distn[idxC].MAxN;
-	    }
+          if (m_distn[idxC].MAxN > m_modeYval)
+            {
+              m_modeXval = idxC;
+              m_modeYval = m_distn[idxC].MAxN;
+            }
           idxL++;
-	}
-      if (idxL > m_modeXval+1)
-	{
-	  idxL = m_modeXval+1;
-	  idxC = idxL + m_MAlength/2;
-	  idxR = idxL + m_MAlength - 1;
-	}
+        }
+      if (idxL > m_modeXval + 1)
+        {
+          idxL = m_modeXval + 1;
+          idxC = idxL + m_MAlength / 2;
+          idxR = idxL + m_MAlength - 1;
+        }
       // else the "while" loop below won't get executed
     }
   m_kvalsWithMinMAxN.clear();
@@ -799,15 +799,15 @@ void BackgroundRegionManager::computeStats(const int& this_k)
       m_pmfParams.push_back(m);
       m_pmf = &nextProbPoisson;
       if (!warningAlreadyIssued)
-	{
-	  cerr << "Warning:  In region " << *m_pCurChrom << ':' << m_posL << '-' << m_posR
-	       << ", all counts used for statistics were 0, or all were 0 except one was 1.\n"
-	       << "This generally should not happen.  If this region is unmappable or problematic for other reasons,\n"
-	       << "it would almost certainly be best to filter it out of the input.\n"
-	       << "There may be other such regions in the input; this warning will only be issued once during this run."
-	       << endl;
-	  warningAlreadyIssued = true;
-	}
+        {
+          cerr << "Warning:  In region " << *m_pCurChrom << ':' << m_posL << '-' << m_posR
+               << ", all counts used for statistics were 0, or all were 0 except one was 1.\n"
+               << "This generally should not happen.  If this region is unmappable or problematic for other reasons,\n"
+               << "it would almost certainly be best to filter it out of the input.\n"
+               << "There may be other such regions in the input; this warning will only be issued once during this run."
+               << endl;
+          warningAlreadyIssued = true;
+        }
     }
   else
     {
@@ -838,13 +838,13 @@ void BackgroundRegionManager::computeStats(const int& this_k)
           m_pmfParams.push_back(m);
           m_pmfParams.push_back(v);
           m_pmfParams.push_back(n);
-	  if (v > 1.0e-8)
-	    m_pmf = &nextProbBinomial;
-	  else
-	    {
-	      m_pmf = NULL;
-	      return;
-	    }
+          if (v > 1.0e-8)
+            m_pmf = &nextProbBinomial;
+          else
+            {
+              m_pmf = NULL;
+              return;
+            }
         }
     }
 
@@ -866,36 +866,36 @@ void BackgroundRegionManager::computeStats(const int& this_k)
     {
       k_end = this_k;
       if (-1 == m_prev_k) // compute for 0 <= k <= this_k.
-	m_distn[0].pmf = curPMF;
+        m_distn[0].pmf = curPMF;
       else // compute for (highest k previously handled) < k <= this_k.
-	{
+        {
           curPMF = m_distn[m_prev_k].pmf;
-	  k_begin = m_prev_k + 1;
-	}
+          k_begin = m_prev_k + 1;
+        }
     }
   for (k = k_begin; k <= k_end; k++)
     {
       curPMF = m_pmf(k, curPMF, m_pmfParams); // note:  if pmf == binomial and k > binomial's n, 0 is returned
       if (static_cast<int>(m_distn.size()) == k)
-	{
-	  StatsForCount sc;
-	  sc.numOccs = 0;
-	  sc.pmf = sc.pval = -1.;
-	  sc.MAxN = -1; // don't compute moving averages until/unless we're sliding, for efficiency's sake
-	  m_distn.push_back(sc); // be sure not to increment m_sampledDataDistnSize...
-	  if (k >= m_MAlength)
-	    m_distn[k - MAlenOver2].MAxN = m_distn[k - MAlenOver2 - 1].MAxN - m_distn[k - m_MAlength].numOccs + m_distn[k].numOccs;
-	  else
-	    {
-	      if (m_MAlength - 1 == k)
-		{
-		  int sum(0);
-		  for (int j = 0; j <= k; j++)
-		    sum += m_distn[j].numOccs;
-		  m_distn[MAlenOver2].MAxN = sum;
-		}
-	    }
-	}
+        {
+          StatsForCount sc;
+          sc.numOccs = 0;
+          sc.pmf = sc.pval = -1.;
+          sc.MAxN = -1; // don't compute moving averages until/unless we're sliding, for efficiency's sake
+          m_distn.push_back(sc); // be sure not to increment m_sampledDataDistnSize...
+          if (k >= m_MAlength)
+            m_distn[k - MAlenOver2].MAxN = m_distn[k - MAlenOver2 - 1].MAxN - m_distn[k - m_MAlength].numOccs + m_distn[k].numOccs;
+          else
+            {
+              if (m_MAlength - 1 == k)
+                {
+                  int sum(0);
+                  for (int j = 0; j <= k; j++)
+                    sum += m_distn[j].numOccs;
+                  m_distn[MAlenOver2].MAxN = sum;
+                }
+            }
+        }
       m_distn[k].pmf = curPMF;
     }
 
@@ -907,7 +907,7 @@ void BackgroundRegionManager::computeStats(const int& this_k)
   // where the terms in the sum decrease monotonically with k.
   // We can cap the sum at, say, 5 significant digits for pval(k),
   // and then work backwards, filling in pval(k-1) = pmf(k-1) + pval(k),
-  // ending with pval(0) = 1.                                                                                                                                                                                      
+  // ending with pval(0) = 1.
   k--; // reset so that k corresponds to the last pmf computed
   int j = k;
   double sum(1.), prevTerm(1.), curTerm;
@@ -920,7 +920,7 @@ void BackgroundRegionManager::computeStats(const int& this_k)
   m_distn[k].pval = m_distn[k].pmf * sum;
   while (k > 1)
     {
-      m_distn[k-1].pval = m_distn[k-1].pmf + m_distn[k].pval;
+      m_distn[k - 1].pval = m_distn[k - 1].pmf + m_distn[k].pval;
       k--;
     }
   m_distn[0].pval = 1.; // explicitly set it to 1, to avoid potential round-off error
@@ -955,7 +955,7 @@ double BackgroundRegionManager::getPvalue(const int& k)
   sc.pmf = sc.pval = -1.;
   sc.MAxN = -1;
 
-  const int prev_max_k(static_cast<int>(m_distn.size()) -1), MAlenOver2(m_MAlength/2); // Yes, m_distn.size(), not m_sampledDataDistnSize.
+  const int prev_max_k(static_cast<int>(m_distn.size()) - 1), MAlenOver2(m_MAlength / 2); // Yes, m_distn.size(), not m_sampledDataDistnSize.
   int kk = prev_max_k;
   double curPMF(m_distn[kk].pmf);
   while (k >= m_distn.size()) // Yes, k, not kk.  We're growing the vector until k fits into its highest bin.
@@ -964,17 +964,17 @@ double BackgroundRegionManager::getPvalue(const int& k)
       sc.pmf = curPMF;
       m_distn.push_back(sc);
       if (kk >= m_MAlength)
-	m_distn[kk - MAlenOver2].MAxN = m_distn[kk - MAlenOver2 - 1].MAxN - m_distn[kk - m_MAlength].numOccs + m_distn[kk].numOccs;
+        m_distn[kk - MAlenOver2].MAxN = m_distn[kk - MAlenOver2 - 1].MAxN - m_distn[kk - m_MAlength].numOccs + m_distn[kk].numOccs;
       else
-	{
-	  if (m_MAlength - 1 == kk)
-	    {
-	      int sum(0);
-	      for (int j = 0; j <= kk; j++)
-		sum += m_distn[j].numOccs;
-	      m_distn[MAlenOver2].MAxN = sum;
-	    }
-	}
+        {
+          if (m_MAlength - 1 == kk)
+            {
+              int sum(0);
+              for (int j = 0; j <= kk; j++)
+                sum += m_distn[j].numOccs;
+              m_distn[MAlenOver2].MAxN = sum;
+            }
+        }
     }
   // Compute the P-value.  See comments in method computeStats() for further info.
   // kk == k at this point.
@@ -990,7 +990,7 @@ double BackgroundRegionManager::getPvalue(const int& k)
   kk = k;
   while (kk > prev_max_k + 1)
     {
-      m_distn[kk-1].pval = m_distn[kk-1].pmf + m_distn[kk].pval;
+      m_distn[kk - 1].pval = m_distn[kk - 1].pmf + m_distn[kk].pval;
       kk--;
     }
 
@@ -1020,10 +1020,10 @@ void BackgroundRegionManager::computePandFlush(PvalueManager& pm, SiteManager& s
       if (!m_sitesInRegion_leftHalf.front().hasPval)
         {
           double pval;
-	  if (m_pmf != NULL)
-	    pval = getPvalue(m_sitesInRegion_leftHalf.front().count);
-	  else
-	    pval = 999.;
+          if (m_pmf != NULL)
+            pval = getPvalue(m_sitesInRegion_leftHalf.front().count);
+          else
+            pval = 999.;
           if (!pm.addObsP(pval))
             {
               sm.getFDRvalsAndWriteAndFlush(pm); // resets pm
@@ -1038,10 +1038,10 @@ void BackgroundRegionManager::computePandFlush(PvalueManager& pm, SiteManager& s
       if (!m_sitesInRegion_rightHalf.front().hasPval)
         {
           double pval;
-	  if (m_pmf != NULL)
-	    pval = getPvalue(m_sitesInRegion_rightHalf.front().count);
-	  else
-	    pval = 999.;
+          if (m_pmf != NULL)
+            pval = getPvalue(m_sitesInRegion_rightHalf.front().count);
+          else
+            pval = 999.;
           if (!pm.addObsP(pval))
             {
               sm.getFDRvalsAndWriteAndFlush(pm); // resets pm
@@ -1117,10 +1117,10 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
            it++)
         {
           double pval;
-	  if (m_pmf != NULL)
-	    pval = getPvalue(it->count);
-	  else
-	    pval = 999.;
+          if (m_pmf != NULL)
+            pval = getPvalue(it->count);
+          else
+            pval = 999.;
           if (!pvm.addObsP(pval))
             {
               sm.getFDRvalsAndWriteAndFlush(pvm); // resets pvm
@@ -1128,7 +1128,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
             }
           sm.setPvalue(pval); // pass this P-value along for the corresponding site
 #if DEBUG
-	  sm.setSampled(it->sampled);
+          sm.setSampled(it->sampled);
 #endif
           it->hasPval = true;
         }
@@ -1143,10 +1143,10 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
       if (m_sitesInRegion_rightHalf.front().pos == m_posC)
         {
           double pval;
-	  if (m_pmf != NULL)
-	    pval = getPvalue(m_sitesInRegion_rightHalf.front().count);
-	  else
-	    pval = 999.;
+          if (m_pmf != NULL)
+            pval = getPvalue(m_sitesInRegion_rightHalf.front().count);
+          else
+            pval = 999.;
           if (!pvm.addObsP(pval))
             {
               sm.getFDRvalsAndWriteAndFlush(pvm); // resets pvm
@@ -1154,14 +1154,14 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
             }
           sm.setPvalue(pval); // pass this P-value along for the corresponding site
 #ifdef DEBUG
-	  sm.setSampled(m_sitesInRegion_rightHalf.front().sampled);
+          sm.setSampled(m_sitesInRegion_rightHalf.front().sampled);
 #endif
           m_sitesInRegion_rightHalf.front().hasPval = true;
         }
       m_sliding = true;
 
       if (s.endPos == m_posR)
-	return;
+        return;
 
       // else proceed to slide this region
     } // End of if (!m_sliding).  Note that m_sliding is now true.
@@ -1181,7 +1181,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
            << __LINE__ << ", expected m_needToUpdate_kcutoff = false, but it's true.\n"
            << "Region = ";
       cerr << *m_pCurChrom << ':'
-	   << "[" << m_posL << ',' << m_posC << ',' << m_posR
+           << "[" << m_posL << ',' << m_posC << ',' << m_posR
            << "], incoming pos = " << s.endPos << ", k_c = " << m_kcutoff
            << endl;
       exit(1);
@@ -1194,110 +1194,109 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
         {
           int prevModeXval(m_modeXval);
           const int k = m_sitesInRegion_leftHalf.front().count;
-	  updateDistn = m_sitesInRegion_leftHalf.front().sampled;
+          updateDistn = m_sitesInRegion_leftHalf.front().sampled;
 
           m_sitesInRegion_leftHalf.pop_front();
 
-	  if (updateDistn)
-	    {
-	      // Update the values used to compute the mean and variance of the estimated null distribution.
-	      if (k <= m_kcutoff)
-		{
-		  m_runningSum_count -= k;
-		  m_runningSum_countSquared -= k * k;
-		  m_numPtsInNullRegion--;
-		}
-	      m_distn[k].numOccs--;
-	      // Update moving averages (technically, moving sums, not averages, because we're not dividing them by N).
-	      idxMin = max(k - m_MAlength / 2, m_MAlength / 2);
-	      idxMax = min(k + m_MAlength / 2, m_sampledDataDistnSize - 1 - m_MAlength / 2);
-	      for (int i = idxMin; i <= idxMax; i++)
-		{
-		  m_distn[i].MAxN -= 1;
-		  if (i == m_modeXval) // note that m_modeXval could be -1, in which case i can't equal it
-		    {
-		      m_modeYval--;
-		      // Check whether this subtraction reveals a new mode to the left or right of it.
-		      for (int j = m_MAlength / 2; j < m_sampledDataDistnSize - m_MAlength/2; j++)
-			{
-			  if (m_distn[j].MAxN > m_modeYval)
-			    {
-			      m_modeXval = j;
-			      m_modeYval = m_distn[j].MAxN;
-			      m_needToUpdate_kcutoff = true;
-			    }
-			}
-		    }
-		}
+          if (updateDistn)
+            {
+              // Update the values used to compute the mean and variance of the estimated null distribution.
+              if (k <= m_kcutoff)
+                {
+                  m_runningSum_count -= k;
+                  m_runningSum_countSquared -= k * k;
+                  m_numPtsInNullRegion--;
+                }
+              m_distn[k].numOccs--;
+              // Update moving averages (technically, moving sums, not averages, because we're not dividing them by N).
+              idxMin = max(k - m_MAlength / 2, m_MAlength / 2);
+              idxMax = min(k + m_MAlength / 2, m_sampledDataDistnSize - 1 - m_MAlength / 2);
+              for (int i = idxMin; i <= idxMax; i++)
+                {
+                  m_distn[i].MAxN -= 1;
+                  if (i == m_modeXval) // note that m_modeXval could be -1, in which case i can't equal it
+                    {
+                      m_modeYval--;
+                      // Check whether this subtraction reveals a new mode to the left or right of it.
+                      for (int j = m_MAlength / 2; j < m_sampledDataDistnSize - m_MAlength / 2; j++)
+                        {
+                          if (m_distn[j].MAxN > m_modeYval)
+                            {
+                              m_modeXval = j;
+                              m_modeYval = m_distn[j].MAxN;
+                              m_needToUpdate_kcutoff = true;
+                            }
+                        }
+                    }
+                }
 
-	      if (0 == m_distn[k].numOccs && k == m_sampledDataDistnSize - 1)
-		{
-		  // The bin at the end of the count distribution/histogram is now empty.
-		  // Delete it, and delete any empty bins immediately preceding it,
-		  // so that the highest bin contains at least one observation.
-		  // If m_samplingInterval != 1 and m_distn.size() > m_sampledDataDistnSize,
-		  // delete all the excess bins in the upper tail for simplicity's sake.
-		  // (Such bins, each with numOccs == 0, will exist when, e.g.,
-		  // only observations with k <= 18 have been "sampled" for use
-		  // in the distribution, but k == 23, unsampled, was nonetheless observed,
-		  // and a P-value was computed for it.
-		  while (!m_distn.empty() && 0 == m_distn.back().numOccs)
-		    m_distn.pop_back();
-		  m_sampledDataDistnSize = static_cast<int>(m_distn.size());
-		  // Because we've deleted 1+ bins from the end of m_distn,
-		  // 1+ moving averages at the end of m_distn are now undefined.
-		  // (This will occur infrequently.)
-		  // Mark them as such for bookkeeping's sake.
-		  for (int i = m_sampledDataDistnSize - 1; i > m_sampledDataDistnSize - 1 - m_MAlength / 2 && i > -1; i--)
-		    m_distn[i].MAxN = -1;
-		  // If we deleted the bin corresponding to m_kcutoff,
-		  // update m_kcutoff so that it's within range.
-		  // Let findCutoff() do this, so all appropriate variables will get updated.
-		  if (m_kcutoff >= m_sampledDataDistnSize)
-		    m_needToUpdate_kcutoff = true;
-		  // Bring idxMax back within range if necessary, now that m_distn.size() has decreased.
-		  if (idxMax > m_sampledDataDistnSize - 1 - m_MAlength / 2)
-		    idxMax = m_sampledDataDistnSize - 1 - m_MAlength / 2; // idxMax might now be < idxMin; ok if so
-		}
+              if (0 == m_distn[k].numOccs && k == m_sampledDataDistnSize - 1)
+                {
+                  // The bin at the end of the count distribution/histogram is now empty.
+                  // Delete it, and delete any empty bins immediately preceding it,
+                  // so that the highest bin contains at least one observation.
+                  // If m_samplingInterval != 1 and m_distn.size() > m_sampledDataDistnSize,
+                  // delete all the excess bins in the upper tail for simplicity's sake.
+                  // (Such bins, each with numOccs == 0, will exist when, e.g.,
+                  // only observations with k <= 18 have been "sampled" for use
+                  // in the distribution, but k == 23, unsampled, was nonetheless observed,
+                  // and a P-value was computed for it.
+                  while (!m_distn.empty() && 0 == m_distn.back().numOccs)
+                    m_distn.pop_back();
+                  m_sampledDataDistnSize = static_cast<int>(m_distn.size());
+                  // Because we've deleted 1+ bins from the end of m_distn,
+                  // 1+ moving averages at the end of m_distn are now undefined.
+                  // (This will occur infrequently.)
+                  // Mark them as such for bookkeeping's sake.
+                  for (int i = m_sampledDataDistnSize - 1; i > m_sampledDataDistnSize - 1 - m_MAlength / 2 && i > -1; i--)
+                    m_distn[i].MAxN = -1;
+                  // If we deleted the bin corresponding to m_kcutoff,
+                  // update m_kcutoff so that it's within range.
+                  // Let findCutoff() do this, so all appropriate variables will get updated.
+                  if (m_kcutoff >= m_sampledDataDistnSize)
+                    m_needToUpdate_kcutoff = true;
+                  // Bring idxMax back within range if necessary, now that m_distn.size() has decreased.
+                  if (idxMax > m_sampledDataDistnSize - 1 - m_MAlength / 2)
+                    idxMax = m_sampledDataDistnSize - 1 - m_MAlength / 2; // idxMax might now be < idxMin; ok if so
+                }
 
-	      if (!m_needToUpdate_kcutoff) // then perform some additional tests and maybe set m_needToUpdate_kcutoff = true
-		{
-		  if (m_modeXval != prevModeXval ||
-		      m_sampledDataDistnSize - 1 == m_kcutoff)
-		    m_needToUpdate_kcutoff = true; // for safety's sake, at least
-		  else
-		    {
-		      const int halfMAlength = m_MAlength / 2;
-		      if (0 == m_minMAxN)
-			{
-			  if (k + halfMAlength > m_modeXval+1 && k - halfMAlength < m_kcutoff)
-			    {
-			      // Check whether the subtraction has created a new instance of 0 == m_minMAxN at some k < m_kcutoff.
-			      idxMin = max(k - halfMAlength, halfMAlength);
-			      idxMax = min(k + halfMAlength, m_sampledDataDistnSize - 1 - halfMAlength);
-			      for (int i = idxMax; i >= idxMin; i--)
-				{
-				  if (0 == m_distn[i].MAxN)
-				    {
-				      m_needToUpdate_kcutoff = true;
-				      break;
-				    }
-				}
-			    }
-			}
-		      else
-			{
-			  if (-1 == m_kTrendReversal)
-			    {
-			      cerr << "Coding error:  m_kTrendReversal should NOT be -1 on line " << __LINE__ << "." << endl;
-			      exit(1);
-			    }
-			  if (k + halfMAlength > m_modeXval+1 && k - halfMAlength <= m_kTrendReversal)
-			    m_needToUpdate_kcutoff = true; // possibly overkill, but worth doing for safety's sake
-			}
-		    }
-		}
-	    } // end of "if (updateDistn)"
+              if (!m_needToUpdate_kcutoff) // then perform some additional tests and maybe set m_needToUpdate_kcutoff = true
+                {
+                  if (m_modeXval != prevModeXval || m_sampledDataDistnSize - 1 == m_kcutoff)
+                    m_needToUpdate_kcutoff = true; // for safety's sake, at least
+                  else
+                    {
+                      const int halfMAlength = m_MAlength / 2;
+                      if (0 == m_minMAxN)
+                        {
+                          if (k + halfMAlength > m_modeXval + 1 && k - halfMAlength < m_kcutoff)
+                            {
+                              // Check whether the subtraction has created a new instance of 0 == m_minMAxN at some k < m_kcutoff.
+                              idxMin = max(k - halfMAlength, halfMAlength);
+                              idxMax = min(k + halfMAlength, m_sampledDataDistnSize - 1 - halfMAlength);
+                              for (int i = idxMax; i >= idxMin; i--)
+                                {
+                                  if (0 == m_distn[i].MAxN)
+                                    {
+                                      m_needToUpdate_kcutoff = true;
+                                      break;
+                                    }
+                                }
+                            }
+                        }
+                      else
+                        {
+                          if (-1 == m_kTrendReversal)
+                            {
+                              cerr << "Coding error:  m_kTrendReversal should NOT be -1 on line " << __LINE__ << "." << endl;
+                              exit(1);
+                            }
+                          if (k + halfMAlength > m_modeXval + 1 && k - halfMAlength <= m_kTrendReversal)
+                            m_needToUpdate_kcutoff = true; // possibly overkill, but worth doing for safety's sake
+                        }
+                    }
+                }
+            } // end of "if (updateDistn)"
         } // end of "if m_sitesInRegion_leftHalf.front().pos == m_posL"
 
       // When we have an observation for the central position,
@@ -1336,10 +1335,10 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
               needToComputePMFs = false;
             }
           double pval;
-	  if (m_pmf != NULL)
-	    pval = getPvalue(m_sitesInRegion_rightHalf.front().count);
-	  else
-	    pval = 999.;
+          if (m_pmf != NULL)
+            pval = getPvalue(m_sitesInRegion_rightHalf.front().count);
+          else
+            pval = 999.;
           if (!pvm.addObsP(pval))
             {
               sm.getFDRvalsAndWriteAndFlush(pvm); // resets pvm
@@ -1347,7 +1346,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
             }
           sm.setPvalue(pval); // pass this P-value along for the corresponding site
 #ifdef DEBUG
-	  sm.setSampled(m_sitesInRegion_rightHalf.front().sampled);
+          sm.setSampled(m_sitesInRegion_rightHalf.front().sampled);
 #endif
           m_sitesInRegion_rightHalf.front().hasPval = true;
         }
@@ -1361,7 +1360,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
   if (1 != m_samplingInterval)
     {
       if (s.endPos > m_nextPosToSample)
-	m_nextPosToSample = s.endPos;
+        m_nextPosToSample = s.endPos;
 
       // Alternatively, "sampling" could be performed strictly at multiples of m_samplingInterval.
       // If we intend to sample at, say, positions 200, 400, 600, 800, 1000, etc.,
@@ -1394,7 +1393,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
            << __LINE__ << ", successfully slid through missing data, expected m_needToUpdate_kcutoff = false, but it's true.\n"
            << "Region = ";
       cerr << *m_pCurChrom << ':'
-	   << "[" << m_posL << ',' << m_posC << ',' << m_posR
+           << "[" << m_posL << ',' << m_posC << ',' << m_posR
            << "], incoming pos = " << s.endPos << ", k_c = " << m_kcutoff
            << endl;
       exit(1);
@@ -1405,10 +1404,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
   // and both were sampled,
   // the distribution remains unchanged, and no calculations need to be made,
   // unless the necessary calculations were postponed during a previous execution of this method.
-  if (m_sitesInRegion_leftHalf.front().pos == m_posL &&
-      m_sitesInRegion_leftHalf.front().count == s.count &&
-      m_sitesInRegion_leftHalf.front().sampled &&
-      m_sitesInRegion_rightHalf.back().sampled)
+  if (m_sitesInRegion_leftHalf.front().pos == m_posL && m_sitesInRegion_leftHalf.front().count == s.count && m_sitesInRegion_leftHalf.front().sampled && m_sitesInRegion_rightHalf.back().sampled)
     {
       m_sitesInRegion_leftHalf.pop_front();
       // When we have an observation for the central position,
@@ -1442,10 +1438,10 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
               computeStats(m_sitesInRegion_rightHalf.front().count); // sets m_prev_k = m_sitesInRegion_rightHalf.front().count
             }
           double pval;
-	  if (m_pmf != NULL)
-	    pval = getPvalue(m_sitesInRegion_rightHalf.front().count);
-	  else
-	    pval = 999.;
+          if (m_pmf != NULL)
+            pval = getPvalue(m_sitesInRegion_rightHalf.front().count);
+          else
+            pval = 999.;
           if (!pvm.addObsP(pval))
             {
               sm.getFDRvalsAndWriteAndFlush(pvm); // resets pvm
@@ -1453,9 +1449,9 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
             }
           sm.setPvalue(pval); // pass this P-value along for the corresponding site
 #ifdef DEBUG
-	  sm.setSampled(m_sitesInRegion_rightHalf.front().sampled);
+          sm.setSampled(m_sitesInRegion_rightHalf.front().sampled);
 #endif
-         m_sitesInRegion_rightHalf.front().hasPval = true;
+          m_sitesInRegion_rightHalf.front().hasPval = true;
         }
 
       return;
@@ -1481,7 +1477,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
   if (m_sitesInRegion_leftHalf.front().pos == m_posL)
     {
       if (m_sitesInRegion_leftHalf.front().sampled)
-	k_outgoing = m_sitesInRegion_leftHalf.front().count;
+        k_outgoing = m_sitesInRegion_leftHalf.front().count;
       m_sitesInRegion_leftHalf.pop_front();
     }
   if (k_outgoing != -1)
@@ -1499,55 +1495,55 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
           // The bin at the end of the count distribution/histogram is now empty.
           // Delete it, and delete any empty bins immediately preceding it,
           // so that the highest bin contains at least one observation.
-	  // If m_samplingInterval != 1 and m_distn.size() > m_sampledDataDistnSize,
-	  // delete all the excess bins in the upper tail for simplicity's sake.
-	  // (Such bins, each with numOccs == 0, will exist when, e.g.,
-	  // only observations with k <= 18 have been "sampled" for use
-	  // in the distribution, but k == 23, unsampled, was nonetheless observed,
-	  // and a P-value was computed for it.
+          // If m_samplingInterval != 1 and m_distn.size() > m_sampledDataDistnSize,
+          // delete all the excess bins in the upper tail for simplicity's sake.
+          // (Such bins, each with numOccs == 0, will exist when, e.g.,
+          // only observations with k <= 18 have been "sampled" for use
+          // in the distribution, but k == 23, unsampled, was nonetheless observed,
+          // and a P-value was computed for it.
           while (!m_distn.empty() && 0 == m_distn.back().numOccs)
             m_distn.pop_back();
-	  m_sampledDataDistnSize = static_cast<int>(m_distn.size());
+          m_sampledDataDistnSize = static_cast<int>(m_distn.size());
           // Because we've deleted 1+ bins from the end of m_distn,
           // 1+ moving averages at the end of m_distn are now undefined.
           // (This will happen infrequently.)
           // Mark them as such for bookkeeping's sake.
-          for (int i = m_sampledDataDistnSize - 1; i > m_sampledDataDistnSize -1 - m_MAlength / 2 && i > -1; i--)
+          for (int i = m_sampledDataDistnSize - 1; i > m_sampledDataDistnSize - 1 - m_MAlength / 2 && i > -1; i--)
             m_distn[i].MAxN = -1;
-	  if (origDistnSize >= m_MAlength && m_sampledDataDistnSize < m_MAlength)
-	    {
-	      // There are now too few bins to compute a MAxN of length m_MAlength, so the mode is undefined.
-	      m_modeXval = m_modeYval = -1;
-	    }
+          if (origDistnSize >= m_MAlength && m_sampledDataDistnSize < m_MAlength)
+            {
+              // There are now too few bins to compute a MAxN of length m_MAlength, so the mode is undefined.
+              m_modeXval = m_modeYval = -1;
+            }
           // If we deleted the bin corresponding to m_kcutoff,
           // update m_kcutoff so that it's within range.
-	  // Let findCutoff() do this, so all appropriate variables will get updated.
+          // Let findCutoff() do this, so all appropriate variables will get updated.
           if (m_kcutoff >= m_sampledDataDistnSize)
-	    m_needToUpdate_kcutoff = true;
-	  // Now redefine "origDistnSize" so that it's correct with respect to k_incoming, which might replace deleted bin(s) and add new ones.
-	  origDistnSize = m_sampledDataDistnSize;
+            m_needToUpdate_kcutoff = true;
+          // Now redefine "origDistnSize" so that it's correct with respect to k_incoming, which might replace deleted bin(s) and add new ones.
+          origDistnSize = m_sampledDataDistnSize;
         }
 
       // Update moving averages (technically, moving sums, not averages, because we're not dividing them by N).
       idxMin = max(k_outgoing - m_MAlength / 2, m_MAlength / 2);
       idxMax = min(k_outgoing + m_MAlength / 2, m_sampledDataDistnSize - 1 - m_MAlength / 2);
       for (int i = idxMin; i <= idxMax; i++)
-	{
-	  m_distn[i].MAxN -= 1;
-	  if (i == m_modeXval)
-	    {
-	      m_modeYval--;
-	      // There's a small chance that this subtraction has moved the mode leftward or rightward.
-	      for (int j = m_MAlength / 2; j < m_sampledDataDistnSize - m_MAlength / 2; j++)
-		{
-		  if (m_distn[j].MAxN > m_modeYval || (j > m_modeXval && m_distn[j].MAxN == m_modeYval))
-		    {
-		      m_modeXval = j;
-		      m_modeYval = m_distn[j].MAxN;
-		    }
-		}
-	    }
-	}
+        {
+          m_distn[i].MAxN -= 1;
+          if (i == m_modeXval)
+            {
+              m_modeYval--;
+              // There's a small chance that this subtraction has moved the mode leftward or rightward.
+              for (int j = m_MAlength / 2; j < m_sampledDataDistnSize - m_MAlength / 2; j++)
+                {
+                  if (m_distn[j].MAxN > m_modeYval || (j > m_modeXval && m_distn[j].MAxN == m_modeYval))
+                    {
+                      m_modeXval = j;
+                      m_modeYval = m_distn[j].MAxN;
+                    }
+                }
+            }
+        }
     }
   m_posL++;
 
@@ -1558,104 +1554,104 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
     {
       // Update the values used to compute the mean and variance of the estimated null distribution.
       if (k_incoming <= m_kcutoff)
-	{
-	  m_runningSum_count += k_incoming;
-	  m_runningSum_countSquared += k_incoming * k_incoming;
-	  m_numPtsInNullRegion++;
-	}
+        {
+          m_runningSum_count += k_incoming;
+          m_runningSum_countSquared += k_incoming * k_incoming;
+          m_numPtsInNullRegion++;
+        }
       if (k_incoming < m_sampledDataDistnSize)
-	m_distn[k_incoming].numOccs++; // NOTE:  Still need to update MAxN values; will do that below.
+        m_distn[k_incoming].numOccs++; // NOTE:  Still need to update MAxN values; will do that below.
       else
-	{
-	  // Add bins to m_distn.         NOTE:  MAxN values get updated here in this case.
-	  int startHere = m_sampledDataDistnSize - m_MAlength / 2;
-	  StatsForCount sc;
-	  sc.numOccs = 0;
-	  sc.pmf = sc.pval = -1.;
-	  sc.MAxN = -1;
+        {
+          // Add bins to m_distn.         NOTE:  MAxN values get updated here in this case.
+          int startHere = m_sampledDataDistnSize - m_MAlength / 2;
+          StatsForCount sc;
+          sc.numOccs = 0;
+          sc.pmf = sc.pval = -1.;
+          sc.MAxN = -1;
 
-	  while (m_sampledDataDistnSize < k_incoming && m_sampledDataDistnSize < static_cast<int>(m_distn.size()))
-	    m_sampledDataDistnSize++;
-	  if (m_sampledDataDistnSize < static_cast<int>(m_distn.size()))
-	    {
-	      m_distn[m_sampledDataDistnSize].numOccs = 1;
-	      m_sampledDataDistnSize++;
-	    }
-	  else
-	    {    
-	      while (static_cast<int>(m_distn.size()) < k_incoming)
-		m_distn.push_back(sc); // create bins for unobserved interior values, e.g., count = 5 but only 0,1,2 have been observed so far
-	      sc.numOccs = 1;
-	      m_distn.push_back(sc);
-	      m_sampledDataDistnSize = static_cast<int>(m_distn.size());
-	    }
-	  if (startHere >= m_MAlength / 2) // then we have at least one valid MAxN value that we will now update
-	    {
-	      int sum(0);
-	      int idxL(startHere - m_MAlength / 2), idxC(startHere), idxR(startHere + m_MAlength / 2);
-	      for (int i = idxL; i <= idxR; i++)
-		sum += m_distn[i].numOccs;
-	      m_distn[idxC].MAxN = sum;
-	      if (m_distn[idxC].MAxN > m_modeYval) // also true when m_modeYval == m_modeXval == -1
-		{
-		  m_modeXval = idxC;
-		  m_modeYval = m_distn[idxC].MAxN;
-		}
-	      firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
-	      lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
-	      idxR++;
-	      while (idxR < m_sampledDataDistnSize)
-		{
-		  sum -= m_distn[idxL++].numOccs;
-		  sum += m_distn[idxR++].numOccs;
-		  idxC++;
-		  m_distn[idxC].MAxN = sum;
-		  if (m_distn[idxC].MAxN > m_modeYval) // also true when m_modeYval == m_modeXval == -1
-		    {
-		      m_modeXval = idxC;
-		      m_modeYval = m_distn[idxC].MAxN;
-		    }
-		  lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
-		}
-	    }
-	  else if (m_sampledDataDistnSize >= m_MAlength)
-	    {
-	      // m_distn contained very few bins before an observation of k_incoming slid into the current region,
-	      // too few to compute any moving averages (times N, MAxN), but k_incoming is large enough
-	      // that now, m_distn contains enough bins to compute at least one MAxN, maybe even several
-	      // (e.g., m_distn had bins for k=0,1,2, and then k_incoming=6 suddenly slid into the region).
-	      // So we need to fill in the rightmost MAxN value and work leftwards from there.
-	      int stopHere = max(startHere, m_MAlength / 2 - 1);
-	      startHere = m_sampledDataDistnSize - 1 - m_MAlength / 2;
-	      int sum(0);
-	      int idxL(startHere - m_MAlength / 2), idxC(startHere), idxR(startHere + m_MAlength / 2);
-	      for (int i = idxL; i <= idxR; i++)
-		sum += m_distn[i].numOccs;
-	      m_distn[idxC].MAxN = sum;
-	      if (m_distn[idxC].MAxN > m_modeYval) // recall m_modeYval == -1 if there had been too few bins to compute a MAxN value
-		{
-		  m_modeXval = idxC;
-		  m_modeYval = m_distn[idxC].MAxN;
-		}
-	      lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
-	      firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
-	      idxC--;
-	      idxL--;
-	      while (idxC != stopHere)
-		{
-		  sum -= m_distn[idxR--].numOccs;
-		  sum += m_distn[idxL--].numOccs;
-		  m_distn[idxC].MAxN = sum;
-		  if (m_distn[idxC].MAxN > m_modeYval) // >, not >=, because in the event of a tie, we want to choose the rightmost mode
-		    {
-		      m_modeXval = idxC;
-		      m_modeYval = m_distn[idxC].MAxN;
-		    }
-		  firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
-		  idxC--;
-		}
-	    }
-	}
+          while (m_sampledDataDistnSize < k_incoming && m_sampledDataDistnSize < static_cast<int>(m_distn.size()))
+            m_sampledDataDistnSize++;
+          if (m_sampledDataDistnSize < static_cast<int>(m_distn.size()))
+            {
+              m_distn[m_sampledDataDistnSize].numOccs = 1;
+              m_sampledDataDistnSize++;
+            }
+          else
+            {
+              while (static_cast<int>(m_distn.size()) < k_incoming)
+                m_distn.push_back(sc); // create bins for unobserved interior values, e.g., count = 5 but only 0,1,2 have been observed so far
+              sc.numOccs = 1;
+              m_distn.push_back(sc);
+              m_sampledDataDistnSize = static_cast<int>(m_distn.size());
+            }
+          if (startHere >= m_MAlength / 2) // then we have at least one valid MAxN value that we will now update
+            {
+              int sum(0);
+              int idxL(startHere - m_MAlength / 2), idxC(startHere), idxR(startHere + m_MAlength / 2);
+              for (int i = idxL; i <= idxR; i++)
+                sum += m_distn[i].numOccs;
+              m_distn[idxC].MAxN = sum;
+              if (m_distn[idxC].MAxN > m_modeYval) // also true when m_modeYval == m_modeXval == -1
+                {
+                  m_modeXval = idxC;
+                  m_modeYval = m_distn[idxC].MAxN;
+                }
+              firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
+              lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
+              idxR++;
+              while (idxR < m_sampledDataDistnSize)
+                {
+                  sum -= m_distn[idxL++].numOccs;
+                  sum += m_distn[idxR++].numOccs;
+                  idxC++;
+                  m_distn[idxC].MAxN = sum;
+                  if (m_distn[idxC].MAxN > m_modeYval) // also true when m_modeYval == m_modeXval == -1
+                    {
+                      m_modeXval = idxC;
+                      m_modeYval = m_distn[idxC].MAxN;
+                    }
+                  lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
+                }
+            }
+          else if (m_sampledDataDistnSize >= m_MAlength)
+            {
+              // m_distn contained very few bins before an observation of k_incoming slid into the current region,
+              // too few to compute any moving averages (times N, MAxN), but k_incoming is large enough
+              // that now, m_distn contains enough bins to compute at least one MAxN, maybe even several
+              // (e.g., m_distn had bins for k=0,1,2, and then k_incoming=6 suddenly slid into the region).
+              // So we need to fill in the rightmost MAxN value and work leftwards from there.
+              int stopHere = max(startHere, m_MAlength / 2 - 1);
+              startHere = m_sampledDataDistnSize - 1 - m_MAlength / 2;
+              int sum(0);
+              int idxL(startHere - m_MAlength / 2), idxC(startHere), idxR(startHere + m_MAlength / 2);
+              for (int i = idxL; i <= idxR; i++)
+                sum += m_distn[i].numOccs;
+              m_distn[idxC].MAxN = sum;
+              if (m_distn[idxC].MAxN > m_modeYval) // recall m_modeYval == -1 if there had been too few bins to compute a MAxN value
+                {
+                  m_modeXval = idxC;
+                  m_modeYval = m_distn[idxC].MAxN;
+                }
+              lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
+              firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
+              idxC--;
+              idxL--;
+              while (idxC != stopHere)
+                {
+                  sum -= m_distn[idxR--].numOccs;
+                  sum += m_distn[idxL--].numOccs;
+                  m_distn[idxC].MAxN = sum;
+                  if (m_distn[idxC].MAxN > m_modeYval) // >, not >=, because in the event of a tie, we want to choose the rightmost mode
+                    {
+                      m_modeXval = idxC;
+                      m_modeYval = m_distn[idxC].MAxN;
+                    }
+                  firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
+                  idxC--;
+                }
+            }
+        }
 
       // If one or more bins were added to the end of m_distn because k_incoming was >= m_distn.size(),
       // even if bins were deleted due to k_outgoing and replaced due to k_incoming,
@@ -1663,120 +1659,119 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
       // Otherwise, update moving averages (technically, moving sums, not averages, because we're not dividing them by N)
       // to reflect the addition of k_incoming.
       if (m_sampledDataDistnSize <= origDistnSize) // <=, not ==, because k_outgoing could have caused shrinkage of m_distn.
-	{
-	  idxMin = max(k_incoming - m_MAlength / 2, m_MAlength / 2);
-	  idxMax = min(k_incoming + m_MAlength / 2, m_sampledDataDistnSize - 1 - m_MAlength / 2);
-	  for (int i = idxMin; i <= idxMax; i++)
-	    {
-	      m_distn[i].MAxN += 1;
-	      if (i == m_modeXval)
-		m_modeYval++;
-	      else
-		{
-		  if (m_distn[i].MAxN > m_modeYval)
-		    {
-		      m_modeXval = i;
-		      m_modeYval = m_distn[i].MAxN;
-		    }
-		  else
-		    if (i > m_modeXval && m_distn[i].MAxN == m_modeYval)
-		      {
-			// The addition has moved the mode rightward.
-			m_modeXval = i;
-			m_modeYval = m_distn[i].MAxN;
-		      }
-		}
-	    }
-	}
+        {
+          idxMin = max(k_incoming - m_MAlength / 2, m_MAlength / 2);
+          idxMax = min(k_incoming + m_MAlength / 2, m_sampledDataDistnSize - 1 - m_MAlength / 2);
+          for (int i = idxMin; i <= idxMax; i++)
+            {
+              m_distn[i].MAxN += 1;
+              if (i == m_modeXval)
+                m_modeYval++;
+              else
+                {
+                  if (m_distn[i].MAxN > m_modeYval)
+                    {
+                      m_modeXval = i;
+                      m_modeYval = m_distn[i].MAxN;
+                    }
+                  else if (i > m_modeXval && m_distn[i].MAxN == m_modeYval)
+                    {
+                      // The addition has moved the mode rightward.
+                      m_modeXval = i;
+                      m_modeYval = m_distn[i].MAxN;
+                    }
+                }
+            }
+        }
       else
-	{
-	  // Bins were added to the end of m_distn; if m_kcutoff encompassed all of m_distn before, it needs to encompass the new bin(s) too.
-	  if (origDistnSize - 1 == m_kcutoff)
-	    m_needToUpdate_kcutoff = true;
-	}
+        {
+          // Bins were added to the end of m_distn; if m_kcutoff encompassed all of m_distn before, it needs to encompass the new bin(s) too.
+          if (origDistnSize - 1 == m_kcutoff)
+            m_needToUpdate_kcutoff = true;
+        }
 
       // At this point, all MAxN values have been updated.
 
       if (!m_needToUpdate_kcutoff)
-	{
-	  // If the mode has changed, recompute everything.
-	  if (m_modeXval != origModeXval)
-	    m_needToUpdate_kcutoff = true;
-	  else
-	    {
-	      if (m_sampledDataDistnSize - 1 == m_kcutoff)
-		m_needToUpdate_kcutoff = true; // Probably m_kcutoff won't change, but do a full check to make sure.
-	      else
-		{
-		  if (0 == m_minMAxN)
-		    {
-		      if (m_distn[m_kcutoff].MAxN != 0)
-			{
-			  // m_kcutoff probably won't change, but it no longer has MAxN==0, so recompute.
-			  m_needToUpdate_kcutoff = true;
-			}
-		      else
-			{
-			  int halfMAlength = m_MAlength / 2;
-			  if (k_outgoing != -1 && k_outgoing + halfMAlength > m_modeXval+1 && k_outgoing - halfMAlength < m_kcutoff)
-			    {
-			      // There's a tiny chance that the subtraction caused a bin left of m_kcutoff
-			      // to get its MAxN value reduced to 0, thereby moving m_kcutoff leftward.
-			      idxMin = max(k_outgoing - halfMAlength, halfMAlength);
-			      idxMax = min(k_outgoing + halfMAlength, m_sampledDataDistnSize - 1 - halfMAlength);
-			      for (int i = idxMax; i >= idxMin; i--)
-				{
-				  if (0 == m_distn[i].MAxN)
-				    {
-				      m_needToUpdate_kcutoff = true;
-				      break;
-				    }
-				}
-			    }
-			  // There's a tiny chance that an addition far to the left of m_kcutoff (where MAxN == 0)
-			  // raised an MAxN value high enough that it is now higher than an MAxN value to its left
-			  // by more than the threshold.  This has been observed: m_kcutoff = 86 where MAxN = 0,
-			  // k = 47 has MAxN = 7, k = 51 has MAxN = 9 with 9 < 7*m_thresholdRatio, and then
-			  // k_incoming raises 51's MAxN from 9 to 10 without touching 47's MAxN,
-			  // so that 10 > 7*m_thesholdRatio and m_kcutoff needs to get set to k=47.
-			  if (m_modeXval+1 < k_incoming - halfMAlength && k_incoming + halfMAlength < m_kcutoff)
-			    m_needToUpdate_kcutoff = true;
-			}
-		    }
-		  else
-		    {
-		      if (-1 == m_kTrendReversal)
-			{
-			  cerr << "Coding error:  m_kTrendReversal should NOT be -1 on line " << __LINE__ << " of BRM::slideAndCompute()." << endl;
-			  cerr << "k_c = " << m_kcutoff << ", m_minMAxN = " << m_minMAxN << ", m_modeXval = "
-			       << m_modeXval << ", m_modeYval = " << m_modeYval
-			       << ", k_out = " << k_outgoing << ", k_in = " << k_incoming
-			       << ", region = ";
-			  cerr << *m_pCurChrom << ':'
-			       << "[" << m_posL << ',' << m_posC+1 << ',' << m_posR << ']' << endl;
-			  cerr << "m_distn = {{0," << m_distn[0].numOccs << ',' << m_distn[0].MAxN;
-			  for (int q = 1; q < m_distn.size(); q++)
-			    {
-			      if (0 == (q+1) % 5)
-				cerr << "},\n{" << q << ',' << m_distn[q].numOccs << ',' << m_distn[q].MAxN;
-			      else
-				cerr << "}, {" << q << ',' << m_distn[q].numOccs << ',' << m_distn[q].MAxN;
-			    }
-			  cerr << "}}" << endl;
-			  exit(1);
-			}
-		      // Prior to k_incoming and, when present, k_outgoing,
-		      // m_kcutoff's MAxN was a "global minimum so far" and m_kTrendReversal's MAxN
-		      // was sufficiently higher to define a "trend reversal."
-		      int halfMAlength = m_MAlength / 2;
-		      if (k_incoming + halfMAlength > m_modeXval+1 && k_incoming - halfMAlength < m_kTrendReversal)
-			m_needToUpdate_kcutoff = true; // possibly overkill, but worth doing for safety's sake
-		      if (k_outgoing != -1 && k_outgoing + halfMAlength > m_modeXval+1 && k_outgoing - halfMAlength <= m_kTrendReversal)
-			m_needToUpdate_kcutoff = true; // possibly overkill, but worth doing for safety's sake
-		    }
-		}
-	    }
-	}
+        {
+          // If the mode has changed, recompute everything.
+          if (m_modeXval != origModeXval)
+            m_needToUpdate_kcutoff = true;
+          else
+            {
+              if (m_sampledDataDistnSize - 1 == m_kcutoff)
+                m_needToUpdate_kcutoff = true; // Probably m_kcutoff won't change, but do a full check to make sure.
+              else
+                {
+                  if (0 == m_minMAxN)
+                    {
+                      if (m_distn[m_kcutoff].MAxN != 0)
+                        {
+                          // m_kcutoff probably won't change, but it no longer has MAxN==0, so recompute.
+                          m_needToUpdate_kcutoff = true;
+                        }
+                      else
+                        {
+                          int halfMAlength = m_MAlength / 2;
+                          if (k_outgoing != -1 && k_outgoing + halfMAlength > m_modeXval + 1 && k_outgoing - halfMAlength < m_kcutoff)
+                            {
+                              // There's a tiny chance that the subtraction caused a bin left of m_kcutoff
+                              // to get its MAxN value reduced to 0, thereby moving m_kcutoff leftward.
+                              idxMin = max(k_outgoing - halfMAlength, halfMAlength);
+                              idxMax = min(k_outgoing + halfMAlength, m_sampledDataDistnSize - 1 - halfMAlength);
+                              for (int i = idxMax; i >= idxMin; i--)
+                                {
+                                  if (0 == m_distn[i].MAxN)
+                                    {
+                                      m_needToUpdate_kcutoff = true;
+                                      break;
+                                    }
+                                }
+                            }
+                          // There's a tiny chance that an addition far to the left of m_kcutoff (where MAxN == 0)
+                          // raised an MAxN value high enough that it is now higher than an MAxN value to its left
+                          // by more than the threshold.  This has been observed: m_kcutoff = 86 where MAxN = 0,
+                          // k = 47 has MAxN = 7, k = 51 has MAxN = 9 with 9 < 7*m_thresholdRatio, and then
+                          // k_incoming raises 51's MAxN from 9 to 10 without touching 47's MAxN,
+                          // so that 10 > 7*m_thesholdRatio and m_kcutoff needs to get set to k=47.
+                          if (m_modeXval + 1 < k_incoming - halfMAlength && k_incoming + halfMAlength < m_kcutoff)
+                            m_needToUpdate_kcutoff = true;
+                        }
+                    }
+                  else
+                    {
+                      if (-1 == m_kTrendReversal)
+                        {
+                          cerr << "Coding error:  m_kTrendReversal should NOT be -1 on line " << __LINE__ << " of BRM::slideAndCompute()." << endl;
+                          cerr << "k_c = " << m_kcutoff << ", m_minMAxN = " << m_minMAxN << ", m_modeXval = "
+                               << m_modeXval << ", m_modeYval = " << m_modeYval
+                               << ", k_out = " << k_outgoing << ", k_in = " << k_incoming
+                               << ", region = ";
+                          cerr << *m_pCurChrom << ':'
+                               << "[" << m_posL << ',' << m_posC + 1 << ',' << m_posR << ']' << endl;
+                          cerr << "m_distn = {{0," << m_distn[0].numOccs << ',' << m_distn[0].MAxN;
+                          for (int q = 1; q < m_distn.size(); q++)
+                            {
+                              if (0 == (q + 1) % 5)
+                                cerr << "},\n{" << q << ',' << m_distn[q].numOccs << ',' << m_distn[q].MAxN;
+                              else
+                                cerr << "}, {" << q << ',' << m_distn[q].numOccs << ',' << m_distn[q].MAxN;
+                            }
+                          cerr << "}}" << endl;
+                          exit(1);
+                        }
+                      // Prior to k_incoming and, when present, k_outgoing,
+                      // m_kcutoff's MAxN was a "global minimum so far" and m_kTrendReversal's MAxN
+                      // was sufficiently higher to define a "trend reversal."
+                      int halfMAlength = m_MAlength / 2;
+                      if (k_incoming + halfMAlength > m_modeXval + 1 && k_incoming - halfMAlength < m_kTrendReversal)
+                        m_needToUpdate_kcutoff = true; // possibly overkill, but worth doing for safety's sake
+                      if (k_outgoing != -1 && k_outgoing + halfMAlength > m_modeXval + 1 && k_outgoing - halfMAlength <= m_kTrendReversal)
+                        m_needToUpdate_kcutoff = true; // possibly overkill, but worth doing for safety's sake
+                    }
+                }
+            }
+        }
     } // end of "if (m_sitesInRegion_rightHalf.back().sampled)"
 
   // When we have an observation for the central position,
@@ -1814,9 +1809,9 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
         }
       double pval;
       if (m_pmf != NULL)
-	pval = getPvalue(m_sitesInRegion_rightHalf.front().count);
+        pval = getPvalue(m_sitesInRegion_rightHalf.front().count);
       else
-	pval = 999.;
+        pval = 999.;
       if (!pvm.addObsP(pval))
         {
           sm.getFDRvalsAndWriteAndFlush(pvm); // resets pvm
@@ -1973,10 +1968,10 @@ int main(int argc, char* argv[])
           background_size = atoi(optarg);
           break;
         case 'n':
-	  sampling_interval = atoi(optarg);
+          sampling_interval = atoi(optarg);
           break;
         case 'm':
-	  smoothing_parameter = atoi(optarg);
+          smoothing_parameter = atoi(optarg);
           break;
         case 'f':
           ss << optarg;
@@ -2015,8 +2010,8 @@ int main(int argc, char* argv[])
            << "\n"
            << "Options: \n"
            << "  -b, --background_size=SIZE     The size of the background region (50001)\n"
-	   << "  -n, --sampling_interval=INT    How often (bp) to sample for null modeling (1)\n"
-	   << "  -m, --smoothing_prameter=INT   Smoothing parameter used in null modeling (5)\n"
+           << "  -n, --sampling_interval=INT    How often (bp) to sample for null modeling (1)\n"
+           << "  -m, --smoothing_prameter=INT   Smoothing parameter used in null modeling (5)\n"
            << "  -p, --num_pvals=COUNT          How many p-values to use to estimate FDR (1000000)\n"
            << "  -f, --fdr_threshold=THRESHOLD  Do not output sites with FDR > THRESHOLD (1.00)\n"
            << "  -s, --seed=SEED                A seed for the random p-value selection\n"
