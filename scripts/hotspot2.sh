@@ -21,7 +21,7 @@ Options:
     -m MIN_HOTSPOT_WIDTH  Minimum hotspot width allowed (50)
     -p PVAL_FDR           Number of p-values to use for FDR (1000000)
     -f HOTSPOT_THRESHOLD  False-discovery rate to use for hotspot filtering (0.05)
-    -F SITECALL_THRESHOLD False-discovery rate to use for site-call filtering (0.10)
+    -F SITECALL_THRESHOLD False-discovery rate to use for site-call filtering (0.05)
     -O                    Use non-overlapping windows (advanced option)
 
     -s SEED               Set this to an integer for repeatable results
