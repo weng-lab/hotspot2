@@ -54,6 +54,20 @@ struct Site {
 #endif
 };
 
+struct SiteRange {
+  string* chrom;
+  string* ID;
+  double pval;
+  double qval;
+  long begPos;
+  long endPos;
+  int count;
+  bool hasPval; // whether a P-value has been computed for the site
+#ifdef DEBUG
+  bool sampled;
+#endif
+};
+
 double nextProbNegativeBinomial(const int& k, const double& prevVal, const vector<double>& params);
 double nextProbNegativeBinomial(const int& k, const double& prevVal, const vector<double>& params)
 {
@@ -193,6 +207,10 @@ void PvalueManager::computeFDRvals(void)
           // Select previously-processed P-values at random
           // to fill in the current distributions,
           // until we have the desired sizes for the distributions.
+	  // The following implementation, which is much faster
+	  // than a conventional implementation of sampling without replacement,
+	  // is called reservoir sampling, "algorithm R"
+	  // (https://en.wikipedia.org/wiki/Reservoir_sampling#Algorithm_R).
           int need = m_N - m_curNumObsP;
           for (int i = 0; i < need; i++)
             {
@@ -231,12 +249,27 @@ void PvalueManager::computeFDRvals(void)
   //
   // Turning this around, this implies that for arbitrary j indexing into sorted P-values,
   // alpha = FDR = m_curObsPvals[j]*m_N/(j+1).
-  // Note:  alpha will not always strictly increase monotonically with P,
-  // because to adjacent sorted P-values can be almost identical
-  // while the factor of 1/(j+1) changes by a larger amount from the first j to the next.
+  //
+  // Note #1:  adjacent sorted P-values can be almost identical while the
+  // factor of 1/(j+1) changes by a larger amount from the first j to the next,
+  // which would cause the FDR to not always strictly increase monotonically with P
+  // if we didn't test for and correct such occurrences.
+  // (E.g., 1M P-values, the 1000th P-value is 1.230e-8, the 1001st P-value is 1.231e-8;
+  // the lower P-value would get FDR = 1.230e-5, while the higher P-value
+  // would get a lower FDR of 1.22977e-5.)
+  //
+  // Note #2:  Just as identical count values can get different P-values
+  // when they appear in different background windows (different contexts for the counts),
+  // identical P-values can get different FDR estimates
+  // when they appear in different contexts (essentially larger background windows, e.g. ~1Mb).
+  // But the interpretation is reversed, because FDR is inversely proportional to P-value rank:
+  // a moderate count gets a lower P-value (more likely to be signal)
+  // when it appears in a window in which most observed counts are tiny,
+  // whereas a low P-value gets a higher FDR (more likely to be random noise)
+  // when it appears in a window in which most P-values are higher (worse) than it.
 
   int idxOfFirstOccOfThisPval(0), idxOfLastOccOfThisPval(0);
-  double N(static_cast<double>(m_N)), FDR;
+  double N(static_cast<double>(m_N)), FDR, prevFDR(-1.);
 
   while (idxOfLastOccOfThisPval < m_N && m_curObsPvals[idxOfLastOccOfThisPval] < 0.99)
     {
@@ -244,6 +277,8 @@ void PvalueManager::computeFDRvals(void)
         idxOfLastOccOfThisPval++;
       idxOfLastOccOfThisPval--;
       FDR = m_curObsPvals[idxOfLastOccOfThisPval] * N / static_cast<double>(idxOfLastOccOfThisPval + 1);
+      if (FDR < prevFDR)
+	FDR = prevFDR;
       if (FDR > 0.99999)
         {
           // Prevent erroneous reporting of "FDR > 1."
@@ -252,6 +287,7 @@ void PvalueManager::computeFDRvals(void)
           break;
         }
       m_p_to_q[m_curObsPvals[idxOfLastOccOfThisPval]] = FDR;
+      prevFDR = FDR;
       idxOfLastOccOfThisPval++;
       idxOfFirstOccOfThisPval = idxOfLastOccOfThisPval;
     }
@@ -259,7 +295,7 @@ void PvalueManager::computeFDRvals(void)
     m_p_to_q[1.] = 1.;
 }
 
-double PvalueManager::FDR(const double& pval)
+inline double PvalueManager::FDR(const double& pval)
 {
   if (pval > 0.99)
     {
@@ -291,6 +327,7 @@ public:
   void setSampled(const bool& sampled);
 #endif
   void getFDRvalsAndWriteAndFlush(PvalueManager& pvm);
+  void writeLastUnreportedSite(const PvalueManager& pvm);
 
 private:
   SiteManager(); // require the above constructor to be used
@@ -300,6 +337,7 @@ private:
   int m_idxCurSiteNeedingPval;
   int m_idxInsertHere;
   int m_N;
+  SiteRange m_lastUnreportedSite;
 };
 
 void SiteManager::initialize(const int& n)
@@ -308,6 +346,7 @@ void SiteManager::initialize(const int& n)
   m_N = n;
   m_idxInsertHere = 0;
   m_idxCurSiteNeedingPval = 0;
+  m_lastUnreportedSite.hasPval = false;
 }
 
 void SiteManager::addSite(const Site& s)
@@ -335,28 +374,112 @@ void SiteManager::setSampled(const bool& sampled)
 }
 #endif
 
+inline void SiteManager::writeLastUnreportedSite(const PvalueManager& pvm)
+{
+#ifdef DEBUG
+  if (m_lastUnreportedSite.qval <= pvm.thresholdFDR() && m_lastUnreportedSite.qval > -0.1)
+    {
+      cout << *m_lastUnreportedSite.chrom << '\t' << m_lastUnreportedSite.begPos << '\t'
+	   << m_lastUnreportedSite.endPos << '\t' << *m_lastUnreportedSite.ID << '\t' << m_lastUnreportedSite.pval
+	   << '\t' << m_lastUnreportedSite.qval << '\t' << m_lastUnreportedSite.sampled << '\n';
+    }
+#else
+  if (m_lastUnreportedSite.qval <= pvm.thresholdFDR() && m_lastUnreportedSite.qval > -0.1)
+    {
+      cout << *m_lastUnreportedSite.chrom << '\t' << m_lastUnreportedSite.begPos << '\t'
+	   << m_lastUnreportedSite.endPos << '\t' << *m_lastUnreportedSite.ID << '\t' << m_lastUnreportedSite.pval
+	   << '\t' << m_lastUnreportedSite.qval << '\n';
+    }
+#endif // DEBUG
+}
+
 void SiteManager::getFDRvalsAndWriteAndFlush(PvalueManager& pvm)
 {
   pvm.computeFDRvals();
+
+  if (0 != m_idxCurSiteNeedingPval && !m_lastUnreportedSite.hasPval)
+    {
+      // initialize m_lastUnreportedSite
+      m_lastUnreportedSite.chrom = m_sites[0].chrom;
+      m_lastUnreportedSite.ID = m_sites[0].ID;
+      m_lastUnreportedSite.pval = m_sites[0].pval;
+      m_lastUnreportedSite.qval = pvm.FDR(m_sites[0].pval);
+      m_lastUnreportedSite.begPos = m_sites[0].endPos - 1;
+      m_lastUnreportedSite.endPos = m_sites[0].endPos;
+      m_lastUnreportedSite.count = m_sites[0].count;
+      m_lastUnreportedSite.hasPval = m_sites[0].hasPval;
+#ifdef DEBUG
+      m_lastUnreportedSite.sampled = m_sites[0].sampled;
+#endif
+    }
+      
   int i = 0;
+  const double SMALL_VALUE(5.0e-6); // collapse adjacent entries if their values are identical to within ~5 significant digits
+
   while (i < m_idxCurSiteNeedingPval)
     {
+      double diffRatioP, diffRatioQ;
+      int diffEndPos = m_sites[i].chrom == m_lastUnreportedSite.chrom ? m_sites[i].endPos - m_lastUnreportedSite.endPos : 999999;
       m_sites[i].qval = pvm.FDR(m_sites[i].pval);
+      if (diffEndPos <= 1) // <= instead of == because we initialize m_lastUnreportedSite to the first site encountered
+	{
+	  // sites are adjacent
+	  if (0 == m_sites[i].pval || 0 == m_lastUnreportedSite.pval) // then we need to avoid dividing by 0
+	    {
+	      if (m_sites[i].pval == m_lastUnreportedSite.pval)
+		{
 #ifdef DEBUG
-      if (m_sites[i].qval <= pvm.thresholdFDR() && m_sites[i].qval > -0.1)
-        {
-          cout << *m_sites[i].chrom << '\t' << m_sites[i].endPos - 1 << '\t'
-               << m_sites[i].endPos << '\t' << *m_sites[i].ID << '\t' << m_sites[i].pval
-               << '\t' << m_sites[i].qval << '\t' << m_sites[i].sampled << '\n';
-        }
-#else
-      if (m_sites[i].qval <= pvm.thresholdFDR() && m_sites[i].qval > -0.1)
-        {
-          cout << *m_sites[i].chrom << '\t' << m_sites[i].endPos - 1 << '\t'
-               << m_sites[i].endPos << '\t' << *m_sites[i].ID << '\t' << m_sites[i].pval
-               << '\t' << m_sites[i].qval << '\n';
-        }
-#endif // DEBUG
+		  if (m_sites[i].sampled == m_lastUnreportedSite.sampled)
+		    {
+#endif
+		      m_lastUnreportedSite.endPos = m_sites[i].endPos;
+		      i++;
+		      continue;
+#ifdef DEBUG
+		    }
+#endif
+		}
+	    }
+	  else
+	    {
+	      if (m_sites[i].pval > m_lastUnreportedSite.pval)
+		diffRatioP = (m_sites[i].pval - m_lastUnreportedSite.pval)/m_lastUnreportedSite.pval;
+	      else
+		diffRatioP = (m_lastUnreportedSite.pval - m_sites[i].pval)/m_sites[i].pval;
+	      if (m_sites[i].qval > m_lastUnreportedSite.qval)
+		diffRatioQ = (m_sites[i].qval - m_lastUnreportedSite.qval)/m_lastUnreportedSite.qval;
+	      else
+		diffRatioQ = (m_lastUnreportedSite.qval - m_sites[i].qval)/m_sites[i].qval;
+	      if (diffRatioP <= SMALL_VALUE && diffRatioQ <= SMALL_VALUE)
+		{
+#ifdef DEBUG
+		  if (m_sites[i].sampled == m_lastUnreportedSite.sampled)
+		    {
+#endif
+		      m_lastUnreportedSite.endPos = m_sites[i].endPos;
+		      i++;
+		      continue;
+#ifdef DEBUG
+		    }
+#endif
+		}
+	    }
+	}
+
+      writeLastUnreportedSite(pvm);
+
+      m_lastUnreportedSite.chrom = m_sites[i].chrom;
+      m_lastUnreportedSite.ID = m_sites[i].ID;
+      m_lastUnreportedSite.pval = m_sites[i].pval;
+      m_lastUnreportedSite.qval = m_sites[i].qval;
+      m_lastUnreportedSite.begPos = m_sites[i].endPos - 1;
+      m_lastUnreportedSite.endPos = m_sites[i].endPos;
+      m_lastUnreportedSite.count = m_sites[i].count;
+      m_lastUnreportedSite.hasPval = m_sites[i].hasPval;
+#ifdef DEBUG
+      m_lastUnreportedSite.sampled = m_sites[i].sampled;
+#endif
+
       i++;
     }
   // Now move any remaining sites (unprocessed) to the beginning of the m_sites vector.
@@ -1923,6 +2046,7 @@ bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, co
 
   brm.computePandFlush(pvm, sm); // See explanatory comment above.
   sm.getFDRvalsAndWriteAndFlush(pvm);
+  sm.writeLastUnreportedSite(pvm);
 
   return true;
 }
