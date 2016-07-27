@@ -270,29 +270,36 @@ void PvalueManager::computeFDRvals(void)
 
   int idxOfFirstOccOfThisPval(0), idxOfLastOccOfThisPval(0);
   double N(static_cast<double>(m_N)), FDR, prevFDR(-1.);
+  map<double,double>::iterator hint = m_p_to_q.begin(); // use this iterator to build the map faster
+  pair<double,double> PvalAndFDR;
 
   while (idxOfLastOccOfThisPval < m_N && m_curObsPvals[idxOfLastOccOfThisPval] < 0.99)
     {
       while (idxOfLastOccOfThisPval < m_N && m_curObsPvals[idxOfLastOccOfThisPval] == m_curObsPvals[idxOfFirstOccOfThisPval])
         idxOfLastOccOfThisPval++;
       idxOfLastOccOfThisPval--;
-      FDR = m_curObsPvals[idxOfLastOccOfThisPval] * N / static_cast<double>(idxOfLastOccOfThisPval + 1);
-      if (FDR < prevFDR)
-	FDR = prevFDR;
-      if (FDR > 0.99999)
+      PvalAndFDR.first = m_curObsPvals[idxOfLastOccOfThisPval];
+      PvalAndFDR.second = PvalAndFDR.first * N / static_cast<double>(idxOfLastOccOfThisPval + 1);
+      if (PvalAndFDR.second < prevFDR)
+	PvalAndFDR.second = prevFDR;
+      if (PvalAndFDR.second > 0.99999)
         {
           // Prevent erroneous reporting of "FDR > 1."
+	  PvalAndFDR.second = 1.;
           while (idxOfLastOccOfThisPval < m_N && m_curObsPvals[idxOfLastOccOfThisPval] < 0.99)
-            m_p_to_q[m_curObsPvals[idxOfLastOccOfThisPval++]] = 1.;
+	    {
+	      PvalAndFDR.first = m_curObsPvals[idxOfLastOccOfThisPval++];
+	      hint = m_p_to_q.insert(hint, PvalAndFDR);
+	    }
           break;
         }
-      m_p_to_q[m_curObsPvals[idxOfLastOccOfThisPval]] = FDR;
-      prevFDR = FDR;
+      hint = m_p_to_q.insert(hint, PvalAndFDR);
+      prevFDR = PvalAndFDR.second;
       idxOfLastOccOfThisPval++;
       idxOfFirstOccOfThisPval = idxOfLastOccOfThisPval;
     }
   if (m_curObsPvals[idxOfLastOccOfThisPval] > 0.99)
-    m_p_to_q[1.] = 1.;
+    m_p_to_q.insert(hint, pair<double,double>(1.,1.));
 }
 
 inline double PvalueManager::FDR(const double& pval)
