@@ -327,7 +327,7 @@ inline double PvalueManager::FDR(const double& pval)
 
 class SiteManager {
 public:
-  SiteManager(const int& n) { initialize(n); }
+  SiteManager(const int& n, const bool& writePvals) { initialize(n, writePvals); }
   void addSite(const Site& s);
   void setPvalue(const double& pval);
 #ifdef DEBUG
@@ -339,18 +339,20 @@ public:
 private:
   SiteManager(); // require the above constructor to be used
   SiteManager(const SiteManager&); // ditto
-  void initialize(const int& n);
+  void initialize(const int& n, const bool& writePvals);
   vector<Site> m_sites;
   int m_idxCurSiteNeedingPval;
   int m_idxInsertHere;
   int m_N;
+  bool m_writePvals;
   SiteRange m_lastUnreportedSite;
 };
 
-void SiteManager::initialize(const int& n)
+void SiteManager::initialize(const int& n, const bool& writePvals)
 {
   m_sites.resize(n);
   m_N = n;
+  m_writePvals = writePvals;
   m_idxInsertHere = 0;
   m_idxCurSiteNeedingPval = 0;
   m_lastUnreportedSite.hasPval = false;
@@ -387,15 +389,19 @@ inline void SiteManager::writeLastUnreportedSite(const PvalueManager& pvm)
   if (m_lastUnreportedSite.qval <= pvm.thresholdFDR() && m_lastUnreportedSite.qval > -0.1)
     {
       cout << *m_lastUnreportedSite.chrom << '\t' << m_lastUnreportedSite.begPos << '\t'
-	   << m_lastUnreportedSite.endPos << '\t' << *m_lastUnreportedSite.ID << '\t' << m_lastUnreportedSite.pval
-	   << '\t' << m_lastUnreportedSite.qval << '\t' << m_lastUnreportedSite.sampled << '\n';
+	   << m_lastUnreportedSite.endPos << '\t' << *m_lastUnreportedSite.ID << '\t' << m_lastUnreportedSite.qval;
+      if (m_writePvals)
+	cout << '\t' << m_lastUnreportedSite.pval;
+      cout << '\t' << m_lastUnreportedSite.sampled << '\n';
     }
 #else
   if (m_lastUnreportedSite.qval <= pvm.thresholdFDR() && m_lastUnreportedSite.qval > -0.1)
     {
       cout << *m_lastUnreportedSite.chrom << '\t' << m_lastUnreportedSite.begPos << '\t'
-	   << m_lastUnreportedSite.endPos << '\t' << *m_lastUnreportedSite.ID << '\t' << m_lastUnreportedSite.pval
-	   << '\t' << m_lastUnreportedSite.qval << '\n';
+	   << m_lastUnreportedSite.endPos << '\t' << *m_lastUnreportedSite.ID << '\t' << m_lastUnreportedSite.qval;
+      if (m_writePvals)
+	cout << '\t' << m_lastUnreportedSite.pval;
+      cout << '\n';
     }
 #endif // DEBUG
 }
@@ -1971,8 +1977,10 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
     }
 }
 
-bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength, const int& pvalDistnSize, const double fdr_threshold);
-bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength, const int& pvalDistnSize, const double fdr_threshold)
+bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength, const int& pvalDistnSize, const double fdr_threshold,
+			  const bool& writePvals);
+bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength, const int& pvalDistnSize, const double fdr_threshold,
+			  const bool& writePvals)
 {
   const int BUFSIZE(1000);
   char buf[BUFSIZE], *p;
@@ -1982,7 +1990,7 @@ bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, co
   Site curSite, prevSite;
 
   BackgroundRegionManager brm(samplingInterval, MAlength);
-  SiteManager sm(pvalDistnSize);
+  SiteManager sm(pvalDistnSize, writePvals);
   PvalueManager pvm(pvalDistnSize, fdr_threshold);
 
   prevSite.chrom = intern(string("xxxNONExxx"));
@@ -2066,6 +2074,7 @@ int main(int argc, char* argv[])
   int sampling_interval = 1;
   int smoothing_parameter = 5; // recommend ca. 15 when the maximum # of sampled observations is ca. 250
   int num_pvals = 1000000;
+  int write_pvals = 0;
   int seed = time(NULL);
   double fdr_threshold = 1.00;
   int print_help = 0;
@@ -2079,6 +2088,7 @@ int main(int argc, char* argv[])
     { "sampling_interval", required_argument, 0, 'n' },
     { "smoothing_parameter", required_argument, 0, 'm' },
     { "num_pvals", required_argument, 0, 'p' },
+    { "write_pvals", no_argument, &write_pvals, 1 },
     { "seed", required_argument, 0, 's' },
     { "fdr_threshold", required_argument, 0, 'f' },
     { "input", required_argument, 0, 'i' },
@@ -2126,6 +2136,8 @@ int main(int argc, char* argv[])
         case 'v':
         case 'V':
           print_version = 1;
+	  break;
+	  // no short option needed for --write_pvals
         case 0:
           // long option received, do nothing
           break;
@@ -2143,15 +2155,17 @@ int main(int argc, char* argv[])
            << "  -b, --background_size=SIZE     The size of the background region (50001)\n"
            << "  -n, --sampling_interval=INT    How often (bp) to sample for null modeling (1)\n"
            << "  -m, --smoothing_prameter=INT   Smoothing parameter used in null modeling (5)\n"
-           << "  -p, --num_pvals=COUNT          How many p-values to use to estimate FDR (1000000)\n"
+           << "  -p, --num_pvals=COUNT          How many P-values to use to estimate FDR (1000000)\n"
+           << "  --write_pvals                  Output P-values in column 6 (P-values are not output by default)\n"
            << "  -f, --fdr_threshold=THRESHOLD  Do not output sites with FDR > THRESHOLD (1.00)\n"
-           << "  -s, --seed=SEED                A seed for the random p-value selection\n"
+           << "  -s, --seed=SEED                A seed for random P-value sampling when the end of the input file is reached\n"
            << "  -i, --input=FILE               A file to read input from (STDIN)\n"
            << "  -o, --output=FILE              A file to write output to (STDOUT)\n"
            << "  -v, --version                  Print the version information and exit\n"
            << "  -h, --help                     Display this helpful help\n"
            << "\n"
-           << " output (sent to stdout) will be a .bed6 file with P-values in field 5 and FDR in field 6\n"
+           << " output (sent to stdout) will be a .bed5 file with FDR in field 5\n"
+	   << "\tor, if --write_pvals is specified, a .bed6 file with P-values appended in field 6\n"
            << " input (received from stdin) requires IDs in field 4 and counts in field 5.\n"
            << endl
            << endl;
@@ -2186,7 +2200,7 @@ int main(int argc, char* argv[])
         }
     }
 
-  if (!parseAndProcessInput(background_size, sampling_interval, smoothing_parameter, num_pvals, fdr_threshold))
+  if (!parseAndProcessInput(background_size, sampling_interval, smoothing_parameter, num_pvals, fdr_threshold, write_pvals ? true : false))
     return -1;
 
   return 0;
