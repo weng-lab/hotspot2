@@ -243,6 +243,7 @@ log "Calling hotspots..."
 
 "$MERGE_EXE" \
   -f "$HOTSPOT_FDR_THRESHOLD" \
+  -m "$MIN_HOTSPOT_WIDTH" \
   "$OUTFILE" \
   "$HOTSPOT_OUTFILE"
 
