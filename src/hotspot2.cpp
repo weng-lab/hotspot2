@@ -207,10 +207,10 @@ void PvalueManager::computeFDRvals(void)
           // Select previously-processed P-values at random
           // to fill in the current distributions,
           // until we have the desired sizes for the distributions.
-	  // The following implementation, which is much faster
-	  // than a conventional implementation of sampling without replacement,
-	  // is called reservoir sampling, "algorithm R"
-	  // (https://en.wikipedia.org/wiki/Reservoir_sampling#Algorithm_R).
+          // The following implementation, which is much faster
+          // than a conventional implementation of sampling without replacement,
+          // is called reservoir sampling, "algorithm R"
+          // (https://en.wikipedia.org/wiki/Reservoir_sampling#Algorithm_R).
           int need = m_N - m_curNumObsP;
           for (int i = 0; i < need; i++)
             {
@@ -270,8 +270,8 @@ void PvalueManager::computeFDRvals(void)
 
   int idxOfFirstOccOfThisPval(0), idxOfLastOccOfThisPval(0);
   double N(static_cast<double>(m_N)), FDR, prevFDR(-1.);
-  map<double,double>::iterator hint = m_p_to_q.begin(); // use this iterator to build the map faster
-  pair<double,double> PvalAndFDR;
+  map<double, double>::iterator hint = m_p_to_q.begin(); // use this iterator to build the map faster
+  pair<double, double> PvalAndFDR;
 
   while (idxOfLastOccOfThisPval < m_N && m_curObsPvals[idxOfLastOccOfThisPval] < 0.99)
     {
@@ -281,16 +281,16 @@ void PvalueManager::computeFDRvals(void)
       PvalAndFDR.first = m_curObsPvals[idxOfLastOccOfThisPval];
       PvalAndFDR.second = PvalAndFDR.first * N / static_cast<double>(idxOfLastOccOfThisPval + 1);
       if (PvalAndFDR.second < prevFDR)
-	PvalAndFDR.second = prevFDR;
+        PvalAndFDR.second = prevFDR;
       if (PvalAndFDR.second > 0.99999)
         {
           // Prevent erroneous reporting of "FDR > 1."
-	  PvalAndFDR.second = 1.;
+          PvalAndFDR.second = 1.;
           while (idxOfLastOccOfThisPval < m_N && m_curObsPvals[idxOfLastOccOfThisPval] < 0.99)
-	    {
-	      PvalAndFDR.first = m_curObsPvals[idxOfLastOccOfThisPval++];
-	      hint = m_p_to_q.insert(hint, PvalAndFDR);
-	    }
+            {
+              PvalAndFDR.first = m_curObsPvals[idxOfLastOccOfThisPval++];
+              hint = m_p_to_q.insert(hint, PvalAndFDR);
+            }
           break;
         }
       hint = m_p_to_q.insert(hint, PvalAndFDR);
@@ -299,7 +299,7 @@ void PvalueManager::computeFDRvals(void)
       idxOfFirstOccOfThisPval = idxOfLastOccOfThisPval;
     }
   if (m_curObsPvals[idxOfLastOccOfThisPval] > 0.99)
-    m_p_to_q.insert(hint, pair<double,double>(1.,1.));
+    m_p_to_q.insert(hint, pair<double, double>(1., 1.));
 }
 
 inline double PvalueManager::FDR(const double& pval)
@@ -389,18 +389,18 @@ inline void SiteManager::writeLastUnreportedSite(const PvalueManager& pvm)
   if (m_lastUnreportedSite.qval <= pvm.thresholdFDR() && m_lastUnreportedSite.qval > -0.1)
     {
       cout << *m_lastUnreportedSite.chrom << '\t' << m_lastUnreportedSite.begPos << '\t'
-	   << m_lastUnreportedSite.endPos << '\t' << *m_lastUnreportedSite.ID << '\t' << m_lastUnreportedSite.qval;
+           << m_lastUnreportedSite.endPos << '\t' << *m_lastUnreportedSite.ID << '\t' << m_lastUnreportedSite.qval;
       if (m_writePvals)
-	cout << '\t' << m_lastUnreportedSite.pval;
+        cout << '\t' << m_lastUnreportedSite.pval;
       cout << '\t' << m_lastUnreportedSite.sampled << '\n';
     }
 #else
   if (m_lastUnreportedSite.qval <= pvm.thresholdFDR() && m_lastUnreportedSite.qval > -0.1)
     {
       cout << *m_lastUnreportedSite.chrom << '\t' << m_lastUnreportedSite.begPos << '\t'
-	   << m_lastUnreportedSite.endPos << '\t' << *m_lastUnreportedSite.ID << '\t' << m_lastUnreportedSite.qval;
+           << m_lastUnreportedSite.endPos << '\t' << *m_lastUnreportedSite.ID << '\t' << m_lastUnreportedSite.qval;
       if (m_writePvals)
-	cout << '\t' << m_lastUnreportedSite.pval;
+        cout << '\t' << m_lastUnreportedSite.pval;
       cout << '\n';
     }
 #endif // DEBUG
@@ -425,7 +425,7 @@ void SiteManager::getFDRvalsAndWriteAndFlush(PvalueManager& pvm)
       m_lastUnreportedSite.sampled = m_sites[0].sampled;
 #endif
     }
-      
+
   int i = 0;
   const double SMALL_VALUE(5.0e-6); // collapse adjacent entries if their values are identical to within ~5 significant digits
 
@@ -435,49 +435,49 @@ void SiteManager::getFDRvalsAndWriteAndFlush(PvalueManager& pvm)
       int diffEndPos = m_sites[i].chrom == m_lastUnreportedSite.chrom ? m_sites[i].endPos - m_lastUnreportedSite.endPos : 999999;
       m_sites[i].qval = pvm.FDR(m_sites[i].pval);
       if (diffEndPos <= 1) // <= instead of == because we initialize m_lastUnreportedSite to the first site encountered
-	{
-	  // sites are adjacent
-	  if (0 == m_sites[i].pval || 0 == m_lastUnreportedSite.pval) // then we need to avoid dividing by 0
-	    {
-	      if (m_sites[i].pval == m_lastUnreportedSite.pval)
-		{
+        {
+          // sites are adjacent
+          if (0 == m_sites[i].pval || 0 == m_lastUnreportedSite.pval) // then we need to avoid dividing by 0
+            {
+              if (m_sites[i].pval == m_lastUnreportedSite.pval)
+                {
 #ifdef DEBUG
-		  if (m_sites[i].sampled == m_lastUnreportedSite.sampled)
-		    {
+                  if (m_sites[i].sampled == m_lastUnreportedSite.sampled)
+                    {
 #endif
-		      m_lastUnreportedSite.endPos = m_sites[i].endPos;
-		      i++;
-		      continue;
+                      m_lastUnreportedSite.endPos = m_sites[i].endPos;
+                      i++;
+                      continue;
 #ifdef DEBUG
-		    }
+                    }
 #endif
-		}
-	    }
-	  else
-	    {
-	      if (m_sites[i].pval > m_lastUnreportedSite.pval)
-		diffRatioP = (m_sites[i].pval - m_lastUnreportedSite.pval)/m_lastUnreportedSite.pval;
-	      else
-		diffRatioP = (m_lastUnreportedSite.pval - m_sites[i].pval)/m_sites[i].pval;
-	      if (m_sites[i].qval > m_lastUnreportedSite.qval)
-		diffRatioQ = (m_sites[i].qval - m_lastUnreportedSite.qval)/m_lastUnreportedSite.qval;
-	      else
-		diffRatioQ = (m_lastUnreportedSite.qval - m_sites[i].qval)/m_sites[i].qval;
-	      if (diffRatioP <= SMALL_VALUE && diffRatioQ <= SMALL_VALUE)
-		{
+                }
+            }
+          else
+            {
+              if (m_sites[i].pval > m_lastUnreportedSite.pval)
+                diffRatioP = (m_sites[i].pval - m_lastUnreportedSite.pval) / m_lastUnreportedSite.pval;
+              else
+                diffRatioP = (m_lastUnreportedSite.pval - m_sites[i].pval) / m_sites[i].pval;
+              if (m_sites[i].qval > m_lastUnreportedSite.qval)
+                diffRatioQ = (m_sites[i].qval - m_lastUnreportedSite.qval) / m_lastUnreportedSite.qval;
+              else
+                diffRatioQ = (m_lastUnreportedSite.qval - m_sites[i].qval) / m_sites[i].qval;
+              if (diffRatioP <= SMALL_VALUE && diffRatioQ <= SMALL_VALUE)
+                {
 #ifdef DEBUG
-		  if (m_sites[i].sampled == m_lastUnreportedSite.sampled)
-		    {
+                  if (m_sites[i].sampled == m_lastUnreportedSite.sampled)
+                    {
 #endif
-		      m_lastUnreportedSite.endPos = m_sites[i].endPos;
-		      i++;
-		      continue;
+                      m_lastUnreportedSite.endPos = m_sites[i].endPos;
+                      i++;
+                      continue;
 #ifdef DEBUG
-		    }
+                    }
 #endif
-		}
-	    }
-	}
+                }
+            }
+        }
 
       writeLastUnreportedSite(pvm);
 
@@ -1978,9 +1978,9 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
 }
 
 bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength, const int& pvalDistnSize, const double fdr_threshold,
-			  const bool& writePvals);
+    const bool& writePvals);
 bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength, const int& pvalDistnSize, const double fdr_threshold,
-			  const bool& writePvals)
+    const bool& writePvals)
 {
   const int BUFSIZE(1000);
   char buf[BUFSIZE], *p;
@@ -2136,8 +2136,8 @@ int main(int argc, char* argv[])
         case 'v':
         case 'V':
           print_version = 1;
-	  break;
-	  // no short option needed for --write_pvals
+          break;
+        // no short option needed for --write_pvals
         case 0:
           // long option received, do nothing
           break;
@@ -2165,7 +2165,7 @@ int main(int argc, char* argv[])
            << "  -h, --help                     Display this helpful help\n"
            << "\n"
            << " output (sent to stdout) will be a .bed5 file with FDR in field 5\n"
-	   << "\tor, if --write_pvals is specified, a .bed6 file with P-values appended in field 6\n"
+           << "\tor, if --write_pvals is specified, a .bed6 file with P-values appended in field 6\n"
            << " input (received from stdin) requires IDs in field 4 and counts in field 5.\n"
            << endl
            << endl;
