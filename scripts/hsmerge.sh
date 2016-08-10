@@ -19,7 +19,7 @@ HOTSPOT_FDR_THRESHOLD=0.05
 
 AWK_EXE=$(which mawk 2>/dev/null || which awk)
 
-while getopts 'hc:f:m:' opt ; do
+while getopts 'hf:m:' opt ; do
   case "$opt" in
     h) usage ;;
     f) HOTSPOT_FDR_THRESHOLD=$OPTARG ;;
