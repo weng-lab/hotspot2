@@ -88,7 +88,8 @@ fi
 # Get all sites (1bp each) that can be viable centers of windows in which we'll want to tally cut counts.
 # This means all mappable sites that are not within a half-window's width
 # of any unmappable region whose width is >= the half-window width.
-bedops -d $CHROM_SIZES $MAPPABLE_REGIONS \
+awk -v w=$HALF_WINDOW_SIZE 'BEGIN{OFS="\t"}{chr=$1;beg=$2+w;end=$3-w;if(end>beg){print chr,beg,end}}' $CHROM_SIZES \
+bedops -d - $MAPPABLE_REGIONS \
     | awk -v t=$HALF_WINDOW_SIZE '{if($3-$2>=t){beg=$2-t;if(beg<0){beg=0}print $1"\t"beg"\t"$3+t}}' \
     | bedops -d $MAPPABLE_REGIONS - \
     | bedops -w - \
