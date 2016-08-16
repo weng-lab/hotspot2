@@ -21,13 +21,11 @@ Options:
                           using the script extractCenterSites.sh before running
                           $0, and the same NEIGHBORHOOD_SIZE
                           must be specified for both scripts.
+                          
+  Optional options (note distinction between 'f' and 'F'):
     -M MAPPABLE_REG_FILE  (uppercase 'M')
                           The file of mappable regions that was used
                           to create the CENTER_SITES_FILE.
-                          If none is available, use the name of a CHROM_SIZES file,
-                          which would imply all sites are mappable.
-                          
-  Optional options (note distinction between 'f' and 'F'):
     -n NEIGHBORHOOD_SIZE  Local neighborhood size (100)
     -w WINDOW_SIZE        Background region size  (25000)
     -m MIN_HOTSPOT_WIDTH  Minimum hotspot width allowed (50)
@@ -141,14 +139,7 @@ if [ ! -s "$CENTER_SITES" ]; then
     usage
 fi
 
-if [ "$MAPPABLE_REGIONS" == "" ]; then
-    echo -e "Error:  Required argument -M MAPPABLE_REG_FILE was not provided."
-    echo -e "If no mappability file is available, use -M chromSizes,"
-    echo -e "where chromSizes contains the lengths of all chromosomes in BED or starch format."
-    usage
-fi
-
-if [ ! -s "$MAPPABLE_REGIONS" ]; then
+if [ "$MAPPABLE_REGIONS" != "" ] && [ ! -s "$MAPPABLE_REGIONS" ]; then
     echo -e "Error:  MAPPABLE_REGIONS file \"$MAPPABLE_REGIONS\" was not found, or is empty."
     usage
 fi
@@ -205,11 +196,12 @@ bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS" "$FRAGMENTS_OUTFILE" "$TOTALCUTS_OUTFIL
 
 # Ensure that only mappable cut counts on the target chromosomes are used.
 log "Running hotspot2..."
-bedops --ec -u "$CHROM_SIZES" \
-    | bedops -e 1 "$CUTCOUNTS" - \
-    | bedops -e 1 - "$MAPPABLE_REGIONS" \
-    | bedmap --faster --range "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" --delim "\t" --prec 0 --echo --sum "$CENTER_SITES" - \
-    | awk 'BEGIN{OFS="\t"}{if("NAN"==$4){$4=0} \
+if [ "$MAPPABLE_REGIONS" != "" ]; then
+    bedops --ec -u "$CHROM_SIZES" \
+	| bedops -e 1 "$CUTCOUNTS" - \
+	| bedops -e 1 - "$MAPPABLE_REGIONS" \
+	| bedmap --faster --range "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" --delim "\t" --prec 0 --echo --sum "$CENTER_SITES" - \
+	| awk 'BEGIN{OFS="\t"}{if("NAN"==$4){$4=0} \
               if(NR>1){ \
                  if($1!=prev1 || $2!=prev3 || $4!=prev4){ \
                     print prev1,prev2,prev3,"i",prev4; \
@@ -225,9 +217,34 @@ bedops --ec -u "$CHROM_SIZES" \
               } \
               prev3=$3} \
            END{print prev1,prev2,prev3,"i",prev4}' \
-    | "$HOTSPOT_EXE" --fdr_threshold="$CALL_THRESHOLD" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" $WRITE_PVALS \
-    | starch - \
-    > "$OUTFILE"
+	| "$HOTSPOT_EXE" --fdr_threshold="$CALL_THRESHOLD" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" $WRITE_PVALS \
+	| starch - \
+	> "$OUTFILE"
+else
+    bedops --ec -u "$CHROM_SIZES" \
+	| awk -v w=$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE 'BEGIN{OFS="\t"}{chr=$1; beg=$2+w; end=$3-w; if(end>beg){print chr,beg,end}}' \
+	| bedops -e 1 "$CUTCOUNTS" - \
+	| bedmap --faster --range "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" --delim "\t" --prec 0 --echo --sum "$CENTER_SITES" - \
+	| awk 'BEGIN{OFS="\t"}{if("NAN"==$4){$4=0} \
+              if(NR>1){ \
+                 if($1!=prev1 || $2!=prev3 || $4!=prev4){ \
+                    print prev1,prev2,prev3,"i",prev4; \
+                    prev1=$1; \
+                    prev2=$2; \
+                    prev4=$4 \
+                 } \
+              } \
+              else{ \
+                 prev1=$1; \
+                 prev2=$2; \
+                 prev4=$4 \
+              } \
+              prev3=$3} \
+           END{print prev1,prev2,prev3,"i",prev4}' \
+	| "$HOTSPOT_EXE" --fdr_threshold="$CALL_THRESHOLD" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" $WRITE_PVALS \
+	| starch - \
+	> "$OUTFILE"
+fi
 
 # We report the largest -log10(FDR) observed at any bp of a hotspot
 # as the "score" of that hotspot, where FDR is the site-specific FDR estimate.

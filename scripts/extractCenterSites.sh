@@ -2,20 +2,20 @@
 
 usage(){
   cat >&2 <<__EOF__
-Usage:  "$0" [options] -c CHROM_SIZES -M MAPPABLE_REGIONS -o OUTFILE
+Usage:  "$0" [options] -c CHROM_SIZES -o OUTFILE
 
 NOTE: This script only needs to be run once per *genome*, not once per *sample*,
       unless a change to the NEIGHBORHOOD_SIZE or MAPPABLE_REGIONS is desired.
-      MAPPABLE_REGIONS should not contain any blacklist regions
+      MAPPABLE_REGIONS, when supplied, should not contain any "blacklist" regions
       (problematic satellite repeats, etc.).
 
 Options:
     -h                    Show this helpful help
 
     -c CHROM_SIZES        BED or starch file of chromosome sizes. Mandatory.
-    -M MAPPABLE_REGIONS   BED or starch file of mappable regions. Mandatory.
-    -o OUTFILE            Output file name. If it doesn't end in .starch, .starch will be appended.
+    -o OUTFILE            Output file name. Mandatory. If it doesn't end in .starch, .starch will be appended.
 
+    -M MAPPABLE_REGIONS   BED or starch file of mappable regions, with "blacklist" subtracted when appropriate.
     -n NEIGHBORHOOD_SIZE  Local neighborhood radius in bp (default = 100, yielding a 201-bp window)
 __EOF__
   exit 2
@@ -49,12 +49,7 @@ if [ ! -s "$CHROM_SIZES" ]; then
     usage
 fi
 
-if [ "$MAPPABLE_REGIONS" == "" ]; then
-    echo -e "Error:  Required argument -m MAPPABLE_REGIONS was not provided."
-    usage
-fi
-
-if [ ! -s "$MAPPABLE_REGIONS" ]; then
+if [ "$MAPPABLE_REGIONS" != "" ] && [ ! -s "$MAPPABLE_REGIONS" ]; then
     echo -e "Error:  MAPPABLE_REGIONS file \"$MAPPABLE_REGIONS\" was not found, or is empty."
     usage
 fi
@@ -88,11 +83,17 @@ fi
 # Get all sites (1bp each) that can be viable centers of windows in which we'll want to tally cut counts.
 # This means all mappable sites that are not within a half-window's width
 # of any unmappable region whose width is >= the half-window width.
-awk -v w=$HALF_WINDOW_SIZE 'BEGIN{OFS="\t"}{chr=$1;beg=$2+w;end=$3-w;if(end>beg){print chr,beg,end}}' $CHROM_SIZES \
-    | bedops -d - $MAPPABLE_REGIONS \
-    | awk -v t=$HALF_WINDOW_SIZE '{if($3-$2>=t){beg=$2-t;if(beg<0){beg=0}print $1"\t"beg"\t"$3+t}}' \
-    | bedops -d $MAPPABLE_REGIONS - \
-    | bedops -w - \
-    | starch - \
-    > $OUTFILE
-
+if [ "$MAPPABLE_REGIONS" != "" ]; then
+    awk -v w=$HALF_WINDOW_SIZE 'BEGIN{OFS="\t"}{chr=$1;beg=$2+w;end=$3-w;if(end>beg){print chr,beg,end}}' $CHROM_SIZES \
+	| bedops -d - $MAPPABLE_REGIONS \
+	| awk -v t=$HALF_WINDOW_SIZE '{if($3-$2>=t){beg=$2-t;if(beg<0){beg=0}print $1"\t"beg"\t"$3+t}}' \
+	| bedops -d $MAPPABLE_REGIONS - \
+	| bedops -w - \
+	| starch - \
+	> $OUTFILE
+else
+    awk -v w=$HALF_WINDOW_SIZE 'BEGIN{OFS="\t"}{chr=$1;beg=$2+w;end=$3-w;if(end>beg){print chr,beg,end}}' $CHROM_SIZES \
+	| bedops -w - \
+	| starch - \
+	> $OUTFILE    
+fi
