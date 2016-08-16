@@ -121,7 +121,7 @@ annotate(){
           print $1, $2, $3, "id-"NR, max_col5, ".","-1","-1", max
         } else {
           col9 = c*log($4)
-          print $1, $2, $3, "id-"NR, 10*col9, ".","-1","-1", col9
+          print $1, $2, $3, "id-"NR, 10*int(col9 + 0.5), ".","-1","-1", col9
         }
       }
     }'
