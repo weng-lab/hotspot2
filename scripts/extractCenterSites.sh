@@ -58,24 +58,9 @@ if [ "$OUTFILE" == "" ]; then
 fi
 
 # Force output file name to end in .starch.
-OUTFILE=$(echo "$OUTFILE" \
-  | awk '
-    {
-      endsInStarch = 0;
-      len=split($0, x, ".");
-      if (len > 1 && "starch" == x[len]) {
-        endsInStarch = 1
-      }
-      if (endsInStarch) {
-        print $0
-      } else {
-        if (len > 1 && "" == x[len]) {
-          print $0"starch"
-        } else {
-          print $0".starch"
-        }
-      }
-    }')
+if [[ "$OUTFILE" != *.starch ]] ; then
+  OUTFILE=$OUTFILE.starch
+fi
 
 HALFWINSIZE_IS_POSITIVE_INTEGER=$(echo "$HALF_WINDOW_SIZE" | awk '{len=split($0,x,".");if(1==len && int($0)>0){print 1}else{print 0}}')
 if [ "$HALFWINSIZE_IS_POSITIVE_INTEGER" != "1" ]; then
