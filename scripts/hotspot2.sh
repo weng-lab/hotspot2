@@ -1,7 +1,7 @@
 #! /bin/bash
 set -x -e -o pipefail
 
-usage(){
+usage() {
   cat >&2 <<__EOF__
 Usage:  $0 [options] in.bam outdir
 
@@ -47,15 +47,15 @@ Options:
     to the lowest value at which you might to investigate hotspots, e.g. 0.05 or 0.10.
 
 __EOF__
-    exit 2
+  exit 2
 }
 
-log(){
+log() {
   echo -e "$(date '+%Y-%m-%d %H:%M:%S')\t$*"
 }
 
-require_exes(){
-  for x in "$@" ; do
+require_exes() {
+  for x in "$@"; do
     if ! which "$x" &>/dev/null; then
       echo "Could not find $x!"
       exit -1
@@ -67,7 +67,7 @@ CHROM_SIZES=""
 CENTER_SITES=""
 MAPPABLE_REGIONS=""
 SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE=100 # i.e., 201bp regions
-BACKGROUND_WINDOW_SIZE=50001 # i.e., +/-25kb around each position
+BACKGROUND_WINDOW_SIZE=50001           # i.e., +/-25kb around each position
 MIN_HOTSPOT_WIDTH=50
 PVAL_DISTN_SIZE=1000000
 HOTSPOT_FDR_THRESHOLD="0.05"
@@ -77,7 +77,7 @@ WRITE_PVALS=""
 
 # Note: Options in the string that are not immediately followed by ':'
 # will not get a value read for them.  Examples are h and P.
-while getopts 'hc:C:M:e:f:F:m:n:p:s:w:P' opt ; do
+while getopts 'hc:C:M:e:f:F:m:n:p:s:w:P' opt; do
   case "$opt" in
     h)
       usage
@@ -113,40 +113,40 @@ while getopts 'hc:C:M:e:f:F:m:n:p:s:w:P' opt ; do
       SEED=$OPTARG
       ;;
     w)
-      BACKGROUND_WINDOW_SIZE=$(( 2 * OPTARG + 1 ))
+      BACKGROUND_WINDOW_SIZE=$((2 * OPTARG + 1))
       ;;
 
   esac
 done
-shift $((OPTIND-1))
+shift $((OPTIND - 1))
 
 if [ "$CHROM_SIZES" == "" ]; then
-    echo -e "Error:  Required argument -c CHROM_SIZES_FILE was not provided."
-    usage
+  echo -e "Error:  Required argument -c CHROM_SIZES_FILE was not provided."
+  usage
 fi
 
 if [ ! -s "$CHROM_SIZES" ]; then
-    echo -e "Error:  CHROM_SIZES file \"$CHROM_SIZES\" was not found, or is empty."
-    usage
+  echo -e "Error:  CHROM_SIZES file \"$CHROM_SIZES\" was not found, or is empty."
+  usage
 fi
 
 if [ "$CENTER_SITES" == "" ]; then
-    echo -e "Error:  Required argument -C CENTER_SITES_FILE was not provided."
-    usage
+  echo -e "Error:  Required argument -C CENTER_SITES_FILE was not provided."
+  usage
 fi
 
 if [ ! -s "$CENTER_SITES" ]; then
-    echo -e "Error:  CENTER_SITES file \"$CENTER_SITES\" was not found, or is empty."
-    usage
+  echo -e "Error:  CENTER_SITES file \"$CENTER_SITES\" was not found, or is empty."
+  usage
 fi
 
 if [ "$MAPPABLE_REGIONS" != "" ] && [ ! -s "$MAPPABLE_REGIONS" ]; then
-    echo -e "Error:  MAPPABLE_REGIONS file \"$MAPPABLE_REGIONS\" was not found, or is empty."
-    usage
+  echo -e "Error:  MAPPABLE_REGIONS file \"$MAPPABLE_REGIONS\" was not found, or is empty."
+  usage
 fi
 
 # Check to make sure Hotspot FDR <= site-call FDR
-if awk '{exit $1>$2?0:1}' <<< "$HOTSPOT_FDR_THRESHOLD $CALL_THRESHOLD"; then
+if awk '{exit $1>$2?0:1}' <<<"$HOTSPOT_FDR_THRESHOLD $CALL_THRESHOLD"; then
   echo "Hotspot FDR threshold (-f $HOTSPOT_FDR_THRESHOLD) cannot be greater than site-calling threshold (-F $CALL_THRESHOLD)" >&2
   exit 2
 fi
@@ -170,7 +170,6 @@ HOTSPOT_EXE=hotspot2
 # Prefer mawk, if installed
 AWK_EXE=$(which mawk 2>/dev/null || which awk)
 
-
 mkdir -p "$OUTDIR"
 
 base="$OUTDIR/$(basename "$BAM" .bam)"
@@ -185,9 +184,8 @@ DENSITY_BW="$base.density.bw"
 PEAKS_OUTFILE="$base.peaks.starch"
 SPOT_SCORE_OUTFILE="$base.SPOT.txt"
 
-
 clean=0
-if [[ -z "$TMPDIR" ]] ;then
+if [[ -z "$TMPDIR" ]]; then
   TMPDIR=$(mktemp -d)
   clean=1
 fi
@@ -197,7 +195,7 @@ bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS" "$FRAGMENTS_OUTFILE" "$TOTALCUTS_OUTFIL
 
 log "Running hotspot2..."
 bedmap --faster --range "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" --delim "\t" --prec 0 --echo --sum "$CENTER_SITES" "$CUTCOUNTS" \
-    | awk 'BEGIN{OFS="\t"}
+  | awk 'BEGIN{OFS="\t"}
           {
             if("NAN"==$4){$4=0}
             if(NR>1){
@@ -215,9 +213,9 @@ bedmap --faster --range "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" --delim "\t" --pre
             prev3=$3
           }
           END { print prev1,prev2,prev3,"i",prev4 }' \
-    | "$HOTSPOT_EXE" --fdr_threshold="$CALL_THRESHOLD" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" $WRITE_PVALS \
-    | starch - \
-    > "$OUTFILE"
+  | "$HOTSPOT_EXE" --fdr_threshold="$CALL_THRESHOLD" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" $WRITE_PVALS \
+  | starch - \
+    >"$OUTFILE"
 
 # We report the largest -log10(FDR) observed at any bp of a hotspot
 # as the "score" of that hotspot, where FDR is the site-specific FDR estimate.
@@ -242,14 +240,14 @@ num_cleaves=$(cat "$TOTALCUTS_OUTFILE")
 cleaves_in_hotspots=$(bedops --ec -e 1 "$CUTCOUNTS" "$HOTSPOT_OUTFILE" | awk 'BEGIN{s=0} {s+=$5} END {print s}')
 echo "scale=4; $cleaves_in_hotspots / $num_cleaves" \
   | bc \
-  > "$SPOT_SCORE_OUTFILE"
+    >"$SPOT_SCORE_OUTFILE"
 
 #log "Creating peaks and density..."
 bash "$DENSPK_EXE" "$TMPDIR" "$WAVELETS_EXE" "$CUTCOUNTS" "$HOTSPOT_OUTFILE" "$CHROM_SIZES" "$DENSITY_OUTFILE" "$PEAKS_OUTFILE"
 
 log "Converting density to bigwig..."
 TMPFRAGS="$(mktemp -t fragsXXXXX)"
-unstarch "$DENSITY_OUTFILE" | cut -f1,2,3,5 > "$TMPFRAGS"
+unstarch "$DENSITY_OUTFILE" | cut -f1,2,3,5 >"$TMPFRAGS"
 bedGraphToBigWig \
   "$TMPFRAGS" \
   <(cut -f1,3 "$CHROM_SIZES") \
@@ -258,7 +256,7 @@ bedGraphToBigWig \
 log "Done!"
 
 rm -f "$TMPFRAGS"
-if [[ $clean != 0 ]] ; then
+if [[ $clean != 0 ]]; then
   rm -rf "$TMPDIR"
 fi
 
