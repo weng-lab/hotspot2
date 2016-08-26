@@ -269,7 +269,7 @@ void PvalueManager::computeFDRvals(void)
   // when it appears in a window in which most P-values are higher (worse) than it.
 
   int idxOfFirstOccOfThisPval(0), idxOfLastOccOfThisPval(0);
-  double N(static_cast<double>(m_N)), FDR, prevFDR(-1.);
+  double N(static_cast<double>(m_N)), prevFDR(-1.);
   map<double, double>::iterator hint = m_p_to_q.begin(); // use this iterator to build the map faster
   pair<double, double> PvalAndFDR;
 
@@ -548,7 +548,7 @@ private:
   BackgroundRegionManager(const BackgroundRegionManager&); // ditto
   void findCutoff(void);
   void computeStats(const int& this_k);
-  double getPvalue(const int& k);
+  double getPvalue(const unsigned int& k);
   int m_posL;
   int m_posR;
   int m_posC;
@@ -677,7 +677,7 @@ void BackgroundRegionManager::add(const Site& s)
           m_distn.push_back(sc);
           m_sampledDataDistnSize++;
         }
-      if (m_distn.size() >= m_MAlength && m_distn[s.count].MAxN != -1 && m_distn[s.count].MAxN >= m_modeYval)
+      if ( static_cast<int>(m_distn.size()) >= m_MAlength && m_distn[s.count].MAxN != -1 && m_distn[s.count].MAxN >= m_modeYval)
         {
           m_modeXval = s.count;
           m_modeYval = m_distn[s.count].MAxN;
@@ -1071,9 +1071,9 @@ void BackgroundRegionManager::computeStats(const int& this_k)
   m_numPtsInNullRegion_duringPrevComputation = m_numPtsInNullRegion;
 }
 
-double BackgroundRegionManager::getPvalue(const int& k)
+double BackgroundRegionManager::getPvalue(const unsigned int& k)
 {
-  if (k < static_cast<int>(m_distn.size())) // Yes, m_distn.size(), not m_sampledDataDistnSize
+  if (k < m_distn.size()) // Yes, m_distn.size(), not m_sampledDataDistnSize
     return m_distn[k].pval;
 
   // k is greater than all count values in the distribution, so we need to add bin(s) for it.
@@ -1604,11 +1604,8 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
 
   int k_incoming = s.count;
   int k_outgoing = -1;
-  int origModeXval(m_modeXval), origModeYval(m_modeYval);
+  int origModeXval(m_modeXval);
   int origDistnSize(m_sampledDataDistnSize);
-  bool haveNewMinMAxN(false), haveNewDuplicateMinMAxN(false);
-  int firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = -1;
-  int lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = -1;
 
   if (m_sitesInRegion_leftHalf.front().pos == m_posL)
     {
@@ -1733,8 +1730,6 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
                   m_modeXval = idxC;
                   m_modeYval = m_distn[idxC].MAxN;
                 }
-              firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
-              lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
               idxR++;
               while (idxR < m_sampledDataDistnSize)
                 {
@@ -1747,7 +1742,6 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
                       m_modeXval = idxC;
                       m_modeYval = m_distn[idxC].MAxN;
                     }
-                  lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
                 }
             }
           else if (m_sampledDataDistnSize >= m_MAlength)
@@ -1769,8 +1763,6 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
                   m_modeXval = idxC;
                   m_modeYval = m_distn[idxC].MAxN;
                 }
-              lastBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
-              firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
               idxC--;
               idxL--;
               while (idxC != stopHere)
@@ -1783,7 +1775,6 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
                       m_modeXval = idxC;
                       m_modeYval = m_distn[idxC].MAxN;
                     }
-                  firstBinWhoseMAxNwasUpdatedDuringAdditionOfNewBins = idxC;
                   idxC--;
                 }
             }
@@ -1886,7 +1877,7 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
                           cerr << *m_pCurChrom << ':'
                                << "[" << m_posL << ',' << m_posC + 1 << ',' << m_posR << ']' << endl;
                           cerr << "m_distn = {{0," << m_distn[0].numOccs << ',' << m_distn[0].MAxN;
-                          for (int q = 1; q < m_distn.size(); q++)
+                          for (unsigned int q = 1; q < m_distn.size(); q++)
                             {
                               if (0 == (q + 1) % 5)
                                 cerr << "},\n{" << q << ',' << m_distn[q].numOccs << ',' << m_distn[q].MAxN;
@@ -1994,6 +1985,7 @@ bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, co
   PvalueManager pvm(pvalDistnSize, fdr_threshold);
 
   prevSite.chrom = intern(string("xxxNONExxx"));
+  prevSite.endPos = -1;
   curSite.hasPval = false;
   curSite.pval = -1.;
   curSite.qval = -1.;
