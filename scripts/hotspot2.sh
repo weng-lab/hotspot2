@@ -12,6 +12,7 @@ Options:
     -c CHROM_SIZES_FILE   (lowercase 'c')
                           File containing the lengths of all chromosomes
                           to include in the analysis, in BED or starch format.
+                          All start coordinates (column 2) must be 0.
     -C CENTER_SITES_FILE  (uppercase 'C')
                           File of mappble sites (1bp each) where cleavages
                           observed at mappable sites within a radius of
@@ -192,16 +193,11 @@ if [[ -z "$TMPDIR" ]] ;then
 fi
 
 log "Generating cut counts..."
-bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS" "$FRAGMENTS_OUTFILE" "$TOTALCUTS_OUTFILE"
+bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS" "$FRAGMENTS_OUTFILE" "$TOTALCUTS_OUTFILE" "$CHROM_SIZES" "$MAPPABLE_REGIONS"
 
-# Ensure that only mappable cut counts on the target chromosomes are used.
 log "Running hotspot2..."
-if [ "$MAPPABLE_REGIONS" != "" ]; then
-    bedops --ec -u "$CHROM_SIZES" \
-	| bedops -e 1 "$CUTCOUNTS" - \
-	| bedops -e 1 - "$MAPPABLE_REGIONS" \
-	| bedmap --faster --range "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" --delim "\t" --prec 0 --echo --sum "$CENTER_SITES" - \
-	| awk 'BEGIN{OFS="\t"}{if("NAN"==$4){$4=0} \
+bedmap --faster --range "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" --delim "\t" --prec 0 --echo --sum "$CENTER_SITES" "$CUTCOUNTS" \
+    | awk 'BEGIN{OFS="\t"}{if("NAN"==$4){$4=0} \
               if(NR>1){ \
                  if($1!=prev1 || $2!=prev3 || $4!=prev4){ \
                     print prev1,prev2,prev3,"i",prev4; \
@@ -217,34 +213,9 @@ if [ "$MAPPABLE_REGIONS" != "" ]; then
               } \
               prev3=$3} \
            END{print prev1,prev2,prev3,"i",prev4}' \
-	| "$HOTSPOT_EXE" --fdr_threshold="$CALL_THRESHOLD" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" $WRITE_PVALS \
-	| starch - \
-	> "$OUTFILE"
-else
-    bedops --ec -u "$CHROM_SIZES" \
-	| awk -v w=$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE 'BEGIN{OFS="\t"}{chr=$1; beg=$2+w; end=$3-w; if(end>beg){print chr,beg,end}}' \
-	| bedops -e 1 "$CUTCOUNTS" - \
-	| bedmap --faster --range "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" --delim "\t" --prec 0 --echo --sum "$CENTER_SITES" - \
-	| awk 'BEGIN{OFS="\t"}{if("NAN"==$4){$4=0} \
-              if(NR>1){ \
-                 if($1!=prev1 || $2!=prev3 || $4!=prev4){ \
-                    print prev1,prev2,prev3,"i",prev4; \
-                    prev1=$1; \
-                    prev2=$2; \
-                    prev4=$4 \
-                 } \
-              } \
-              else{ \
-                 prev1=$1; \
-                 prev2=$2; \
-                 prev4=$4 \
-              } \
-              prev3=$3} \
-           END{print prev1,prev2,prev3,"i",prev4}' \
-	| "$HOTSPOT_EXE" --fdr_threshold="$CALL_THRESHOLD" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" $WRITE_PVALS \
-	| starch - \
-	> "$OUTFILE"
-fi
+    | "$HOTSPOT_EXE" --fdr_threshold="$CALL_THRESHOLD" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" $WRITE_PVALS \
+    | starch - \
+    > "$OUTFILE"
 
 # We report the largest -log10(FDR) observed at any bp of a hotspot
 # as the "score" of that hotspot, where FDR is the site-specific FDR estimate.
@@ -266,7 +237,7 @@ log "Calling hotspots..."
 
 log "Calculating SPOT score..."
 num_cleaves=$(cat "$TOTALCUTS_OUTFILE")
-cleaves_in_hotspots=$(bedops --ec -e -1 "$CUTCOUNTS" "$HOTSPOT_OUTFILE" | awk 'BEGIN{s=0} {s+=$5} END {print s}')
+cleaves_in_hotspots=$(bedops --ec -e 1 "$CUTCOUNTS" "$HOTSPOT_OUTFILE" | awk 'BEGIN{s=0} {s+=$5} END {print s}')
 echo "scale=4; $cleaves_in_hotspots / $num_cleaves" \
   | bc \
   > "$SPOT_SCORE_OUTFILE"
