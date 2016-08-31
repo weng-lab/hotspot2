@@ -20,8 +20,8 @@ MAPPABLE_REGIONS=""
 if [[ $# == 6 ]] ; then
     MAPPABLE_REGIONS=$6
     if [ ! -s "$MAPPABLE_REGIONS" ]; then
-	echo -e "Error:  File \"$MAPPABLE_REGIONS\" supplied to $0 was not found, or is empty."
-	exit 2
+        echo -e "Error:  File \"$MAPPABLE_REGIONS\" supplied to $0 was not found, or is empty."
+        exit 2
     fi
 fi
 if [ ! -s "$bam" ]; then
@@ -32,9 +32,6 @@ if [ ! -s "$CHROM_SIZES" ]; then
     echo -e "Error:  Chromosome sizes file \"$CHROM_SIZES\" supplied to $0 was not found, or is empty."
     exit 2
 fi
-
-name=$(basename $bam .bam)
-outputdir="$(dirname $CUTCOUNTS)"
 
 clean=0
 if [[ -z "$TMPDIR" ]] ;then
@@ -52,84 +49,86 @@ FRAGMENTSTMP="$TMPDIR/fragments.bed"
 if [[  ! -s "$CUTCOUNTS" ]]; then
 
     if [ "$MAPPABLE_REGIONS" == "" ]; then
-	time bam2bed --do-not-sort < "$bam" \
-	    | "$AWK_EXE" -v fragmentfile=$FRAGMENTSTMP \
-            'BEGIN { FS="\t"; OFS=FS } ; { \
-          strand=$6; \
-          read_start=$2; \
-          read_end=$3; \
-          read_id=$1; \
-          flag=$7; \
-          tlen=$11; \
-          if( strand == "+" ) { \
-            cut_start = read_start; \
-            cut_end = read_start + 1; \
-          } else { \
-            cut_start= read_end; \
-            cut_end = read_end + 1; \
-          } \
-          print read_id, cut_start, cut_end; \
-          if (tlen > 0) { \
-            fragment_end = read_start + tlen; \
-            print read_id, read_start, fragment_end > fragmentfile; \
-          } \
-        }' \
-	    | sort-bed --max-mem 8G - \
-	    | uniq -c \
-	    | "$AWK_EXE" '{ print $2"\t"$3"\t"$4"\tid-"NR"\t"$1 }' \
-	    | bedops -e 1 - $CHROM_SIZES \
-	    | "$AWK_EXE" -v totalcutsfile=$TOTALCUTSFILE 'BEGIN{sum=0}{sum += $5; print $0}END{print sum > totalcutsfile}' \
-	    | starch - \
-	    > "$CUTCOUNTS"
+        time bam2bed --do-not-sort < "$bam" \
+            | "$AWK_EXE" -v "fragmentfile=$FRAGMENTSTMP"
+            'BEGIN { FS="\t"; OFS=FS } 
+            {
+              strand=$6;
+              read_start=$2;
+              read_end=$3;
+              read_id=$1;
+              flag=$7;
+              tlen=$11;
+              if( strand == "+" ) {
+                cut_start = read_start;
+                cut_end = read_start + 1;
+              } else {
+                cut_start= read_end;
+                cut_end = read_end + 1;
+              }
+              print read_id, cut_start, cut_end;
+              if (tlen > 0) {
+                fragment_end = read_start + tlen;
+                print read_id, read_start, fragment_end > fragmentfile;
+              }
+            }' \
+            | sort-bed --max-mem 8G - \
+            | uniq -c \
+            | "$AWK_EXE" '{ print $2"\t"$3"\t"$4"\tid-"NR"\t"$1 }' \
+            | bedops -e 1 - "$CHROM_SIZES" \
+            | "$AWK_EXE" -v "totalcutsfile=$TOTALCUTSFILE" 'BEGIN{sum=0}{sum += $5; print $0}END{print sum > totalcutsfile}' \
+            | starch - \
+            > "$CUTCOUNTS"
 
     else
 
-	time bam2bed --do-not-sort < "$bam" \
-	    | "$AWK_EXE" -v fragmentfile=$FRAGMENTSTMP \
-            'BEGIN { FS="\t"; OFS=FS } ; { \
-          strand=$6; \
-          read_start=$2; \
-          read_end=$3; \
-          read_id=$1; \
-          flag=$7; \
-          tlen=$11; \
-          if( strand == "+" ) { \
-            cut_start = read_start; \
-            cut_end = read_start + 1; \
-          } else { \
-            cut_start= read_end; \
-            cut_end = read_end + 1; \
-          } \
-          print read_id, cut_start, cut_end; \
-          if (tlen > 0) { \
-            fragment_end = read_start + tlen; \
-            print read_id, read_start, fragment_end > fragmentfile; \
-          } \
-        }' \
-	    | sort-bed --max-mem 8G - \
-	    | uniq -c \
-	    | "$AWK_EXE" '{ print $2"\t"$3"\t"$4"\tid-"NR"\t"$1 }' \
-	    | bedops -e 1 - $CHROM_SIZES \
-	    | bedops -e -1 - $MAPPABLE_REGIONS \
-	    | "$AWK_EXE" -v totalcutsfile=$TOTALCUTSFILE 'BEGIN{sum=0}{sum += $5; print $0}END{print sum > totalcutsfile}' \
-	    | starch - \
-	    > "$CUTCOUNTS"
+        time bam2bed --do-not-sort < "$bam" \
+            | "$AWK_EXE" -v "fragmentfile=$FRAGMENTSTMP" \
+            'BEGIN { FS="\t"; OFS=FS } 
+            {
+              strand=$6;
+              read_start=$2;
+              read_end=$3;
+              read_id=$1;
+              flag=$7;
+              tlen=$11;
+              if( strand == "+" ) {
+                cut_start = read_start;
+                cut_end = read_start + 1;
+              } else {
+                cut_start= read_end;
+                cut_end = read_end + 1;
+              }
+              print read_id, cut_start, cut_end;
+              if (tlen > 0) {
+                fragment_end = read_start + tlen;
+                print read_id, read_start, fragment_end > fragmentfile;
+              }
+            }' \
+            | sort-bed --max-mem 8G - \
+            | uniq -c \
+            | "$AWK_EXE" '{ print $2"\t"$3"\t"$4"\tid-"NR"\t"$1 }' \
+            | bedops -e 1 - "$CHROM_SIZES" \
+            | bedops -e -1 - "$MAPPABLE_REGIONS" \
+            | "$AWK_EXE" -v "totalcutsfile=$TOTALCUTSFILE" 'BEGIN{sum=0}{sum += $5; print $0}END{print sum > totalcutsfile}' \
+            | starch - \
+            > "$CUTCOUNTS"
 
     fi
 
     if [[  ! -e "$FRAGMENTSTMP" ]]; then
-	touch "$FRAGMENTSTMP"
+        touch "$FRAGMENTSTMP"
     fi
 
     if [ "$MAPPABLE_REGIONS" == "" ]; then
-	sort-bed --max-mem 8G "$FRAGMENTSTMP" \
-	    | bedops -e 1 - $CHROM_SIZES \
-	    | starch - > "$FRAGMENTS"
+        sort-bed --max-mem 8G "$FRAGMENTSTMP" \
+            | bedops -e 1 - "$CHROM_SIZES" \
+            | starch - > "$FRAGMENTS"
     else
-	sort-bed --max-mem 8G "$FRAGMENTSTMP" \
-	    | bedops -e 1 - $CHROM_SIZES \
-	    | bedops -e 1 - $MAPPABLE_REGIONS \
-	    | starch - > "$FRAGMENTS"
+        sort-bed --max-mem 8G "$FRAGMENTSTMP" \
+            | bedops -e 1 - "$CHROM_SIZES" \
+            | bedops -e 1 - "$MAPPABLE_REGIONS" \
+            | starch - > "$FRAGMENTS"
     fi
 
     rm -f "$FRAGMENTSTMP"
@@ -137,7 +136,7 @@ if [[  ! -s "$CUTCOUNTS" ]]; then
 fi
 
 if [ $clean != 0 ] ; then
-  rm -rf $TMPDIR
+  rm -rf "$TMPDIR"
 fi
 
 exit 0

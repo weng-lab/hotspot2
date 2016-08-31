@@ -94,16 +94,16 @@ done
 log "Finalizing peaks..."
 cat $pkouts \
   | "$AWK_EXE" -v "h=$halfbin" -v "c=$chrfile" \
-      'BEGIN { \
-        OFS="\t"; \
-        while ( (getline line < c) > 0 ) { \
-          split(line, a, "\t"); \
-          chrom_ends[a[1]] = a[3]; \
-        } \
-      } ; { \
-        m=($2+$3)/2; left=m-h; if(left < 0) left=0; \
-        right=m+h; if(chrom_ends[$1] < right) right=chrom_ends[$1]; \
-        print $1, left, right, $4, $5; \
+      'BEGIN {
+        OFS="\t";
+        while ( (getline line < c) > 0 ) {
+          split(line, a, "\t");
+          chrom_ends[a[1]] = a[3];
+        }
+      } ; {
+        m=($2+$3)/2; left=m-h; if(left < 0) left=0;
+        right=m+h; if(chrom_ends[$1] < right) right=chrom_ends[$1];
+        print $1, left, right, $4, $5;
       }' - \
   | bedmap --echo --skip-unmapped --sweep-all --fraction-either 0.25 - "$hotspots" \
   | starch - \
@@ -116,6 +116,6 @@ unstarch "$pk" \
 
 log "Finalizing density..."
 starchcat $densouts \
-  > "$density"
+  >"$density"
 
 exit 0

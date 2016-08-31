@@ -22,7 +22,7 @@ Options:
                           using the script extractCenterSites.sh before running
                           $0, and the same NEIGHBORHOOD_SIZE
                           must be specified for both scripts.
-                          
+
   Optional options (note distinction between 'f' and 'F'):
     -M MAPPABLE_REG_FILE  (uppercase 'M')
                           The file of mappable regions that was used
@@ -197,22 +197,24 @@ bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS" "$FRAGMENTS_OUTFILE" "$TOTALCUTS_OUTFIL
 
 log "Running hotspot2..."
 bedmap --faster --range "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" --delim "\t" --prec 0 --echo --sum "$CENTER_SITES" "$CUTCOUNTS" \
-    | awk 'BEGIN{OFS="\t"}{if("NAN"==$4){$4=0} \
-              if(NR>1){ \
-                 if($1!=prev1 || $2!=prev3 || $4!=prev4){ \
-                    print prev1,prev2,prev3,"i",prev4; \
-                    prev1=$1; \
-                    prev2=$2; \
-                    prev4=$4 \
-                 } \
-              } \
-              else{ \
-                 prev1=$1; \
-                 prev2=$2; \
-                 prev4=$4 \
-              } \
-              prev3=$3} \
-           END{print prev1,prev2,prev3,"i",prev4}' \
+    | awk 'BEGIN{OFS="\t"}
+          {
+            if("NAN"==$4){$4=0}
+            if(NR>1){
+              if($1!=prev1 || $2!=prev3 || $4!=prev4){
+                print prev1,prev2,prev3,"i",prev4;
+                prev1=$1;
+                prev2=$2;
+                prev4=$4
+              }
+            } else {
+              prev1=$1;
+              prev2=$2;
+              prev4=$4
+            }
+            prev3=$3
+          }
+          END { print prev1,prev2,prev3,"i",prev4 }' \
     | "$HOTSPOT_EXE" --fdr_threshold="$CALL_THRESHOLD" --background_size="$BACKGROUND_WINDOW_SIZE" --num_pvals="$PVAL_DISTN_SIZE" --seed="$SEED" $WRITE_PVALS \
     | starch - \
     > "$OUTFILE"

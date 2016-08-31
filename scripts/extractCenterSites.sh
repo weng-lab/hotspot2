@@ -27,8 +27,6 @@ MAPPABLE_REGIONS=
 OUTFILE=
 HALF_WINDOW_SIZE=100
 
-AWK_EXE=$(which mawk 2>/dev/null || which awk)
-
 while getopts 'hc:M:o:n:' opt ; do
   case "$opt" in
     h) usage ;;
@@ -60,21 +58,26 @@ if [ "$OUTFILE" == "" ]; then
 fi
 
 # Force output file name to end in .starch.
-OUTFILE=`echo $OUTFILE | awk '{endsInStarch = 0; \
-                               len=split($0, x, "."); \
-                               if (len > 1 && "starch" == x[len]) { \
-                                  endsInStarch = 1 } \
-                               if (endsInStarch) { \
-                                  print $0 } \
-                               else { \
-                                  if (len > 1 && "" == x[len]) { \
-                                     print $0"starch" } \
-                                  else { \
-                                     print $0".starch" } \
-                               } \
-                              }'`
+OUTFILE=$(echo "$OUTFILE" \
+  | awk '
+    {
+      endsInStarch = 0;
+      len=split($0, x, ".");
+      if (len > 1 && "starch" == x[len]) {
+        endsInStarch = 1
+      }
+      if (endsInStarch) {
+        print $0
+      } else {
+        if (len > 1 && "" == x[len]) {
+          print $0"starch"
+        } else {
+          print $0".starch"
+        }
+      }
+    }')
 
-HALFWINSIZE_IS_POSITIVE_INTEGER=`echo $HALF_WINDOW_SIZE | awk '{len=split($0,x,".");if(1==len && int($0)>0){print 1}else{print 0}}'`
+HALFWINSIZE_IS_POSITIVE_INTEGER=$(echo "$HALF_WINDOW_SIZE" | awk '{len=split($0,x,".");if(1==len && int($0)>0){print 1}else{print 0}}')
 if [ "$HALFWINSIZE_IS_POSITIVE_INTEGER" != "1" ]; then
     echo -e "Invalid NEIGHBORHOOD_SIZE \"$HALF_WINDOW_SIZE\"; must be a positive integer (default = 100)."
     usage
@@ -84,16 +87,16 @@ fi
 # This means all mappable sites that are not within a half-window's width
 # of any unmappable region whose width is >= the half-window width.
 if [ "$MAPPABLE_REGIONS" != "" ]; then
-    bedops --range "${HALF_WINDOW_SIZE}:-${HALF_WINDOW_SIZE}" -u $CHROM_SIZES \
-	| bedops -d - $MAPPABLE_REGIONS \
-	| awk -v t=$HALF_WINDOW_SIZE '{if($3-$2>=t){beg=$2-t;if(beg<0){beg=0}print $1"\t"beg"\t"$3+t}}' \
-	| bedops -d $MAPPABLE_REGIONS - \
+    bedops --range "${HALF_WINDOW_SIZE}:-${HALF_WINDOW_SIZE}" -u "$CHROM_SIZES" \
+	| bedops -d - "$MAPPABLE_REGIONS" \
+	| awk -v "t=$HALF_WINDOW_SIZE" '{if($3-$2>=t){beg=$2-t;if(beg<0){beg=0}print $1"\t"beg"\t"$3+t}}' \
+	| bedops -d "$MAPPABLE_REGIONS" - \
 	| bedops -w - \
 	| starch - \
-	> $OUTFILE
+	> "$OUTFILE"
 else
-    bedops --range "${HALF_WINDOW_SIZE}:-${HALF_WINDOW_SIZE}" -u $CHROM_SIZES \
+    bedops --range "${HALF_WINDOW_SIZE}:-${HALF_WINDOW_SIZE}" -u "$CHROM_SIZES" \
 	| bedops -w - \
 	| starch - \
-	> $OUTFILE    
+	> "$OUTFILE"
 fi
