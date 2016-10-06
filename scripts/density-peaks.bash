@@ -45,7 +45,7 @@ for chr in $(awk '{print $1}' "$chrfile"); do
   ## Tag density, 150bp window, sliding every 20bp, used for peak-finding and display
   ##  --sweep-all used to prevent a possible broken pipe
   bedops --ec --chop 20 --stagger 20 --chrom "$chr" "$chrfile" \
-    | bedmap --faster --sweep-all --chrom "$chr" --range "$rangepad" --delim "\t" --echo --echo-ref-row-id --count - "$tags" \
+    | bedmap --faster --sweep-all --chrom "$chr" --range "$rangepad" --delim "\t" --echo --echo-ref-row-id --sum - "$tags" \
     | starch - \
       >"$tmpdir/.dens.$chr.starch"
 
