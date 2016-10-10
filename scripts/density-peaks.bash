@@ -44,8 +44,10 @@ for chr in $(awk '{print $1}' "$chrfile"); do
 
   ## Tag density, 150bp window, sliding every 20bp, used for peak-finding and display
   ##  --sweep-all used to prevent a possible broken pipe
+  ## Use awk, not sed to change NAN to 0 since a 'chromosome' name could include NAN and then so would field 1 and field 4
   bedops --ec --chop 20 --stagger 20 --chrom "$chr" "$chrfile" \
     | bedmap --faster --sweep-all --chrom "$chr" --range "$rangepad" --delim "\t" --echo --echo-ref-row-id --sum - "$tags" \
+    | awk 'BEGIN {OFS="\t"} ; { if ( $(NF) == "NAN" ) { $(NF)=0; } print; }' \
     | starch - \
       >"$tmpdir/.dens.$chr.starch"
 
