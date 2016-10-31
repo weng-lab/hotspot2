@@ -109,8 +109,14 @@ cat $pkouts \
     }' \
     - \
   | bedmap --echo --skip-unmapped --sweep-all --fraction-either 0.25 - "$hotspots" \
+    >"$pk.tmp"
+
+bedops -m "$pk.tmp" \
+  | bedmap --sweep-all --faster --echo --echo-ref-row-id --max --prec 0 - "$pk.tmp" \
   | starch - \
     >"$pk"
+
+rm -f "$pk.tmp"
 
 unstarch "$pk" \
   | awk -v "h=$halfbin" 'BEGIN {OFS="\t"} ; { print $1, $2, $3, ".", "0", ".", $5, "-1", "-1", h }' \
