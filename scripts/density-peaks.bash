@@ -112,7 +112,7 @@ cat $pkouts \
     >"$pk.tmp"
 
 bedops -m "$pk.tmp" \
-  | bedmap --sweep-all --faster --echo --echo-ref-row-id --max --prec 0 - "$pk.tmp" \
+  | bedmap --delim "\t" --sweep-all --faster --echo --echo-ref-row-id --max --prec 0 - "$pk.tmp" \
   | starch - \
     >"$pk"
 
