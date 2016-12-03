@@ -6,10 +6,10 @@ and to work with alignment files in BAM format.
 hotspot2 requires each of the following programs to be installed and accessible from the user's path
 before it can be used:
 * g++ (or an equivalent C++ compiler; replace "g++" with its name in Makefile in this case)
-* bedops
-* samtools
-* bedGraphToBigWig
-* modwt
+* [bedops](https://github.com/bedops/bedops)
+* [samtools](https://github.com/samtools)
+* [bedGraphToBigWig](https://github.com/ENCODE-DCC/kentUtils)
+* [modwt](https://github.com/StamLab/modwt)
 
 hotspot2 tallies cleavages within a small region ("window") around each site.  It slides the window
 across the genome, and statistically evaluates cleavage tallies within their local context, i.e.,
