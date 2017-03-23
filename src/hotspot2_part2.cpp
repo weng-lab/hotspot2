@@ -403,7 +403,7 @@ int main(int argc, char* argv[])
            << "\n"
            << " output (sent to stdout) will be a .bed5 file with FDR in field 5\n"
            << "\tor, if --write_pvals is specified, a .bed6 file with P-values appended in field 6\n"
-           << " input (received from stdin) consists of many rows of values in 4 columns.\n"
+           << " input (via \"-i FILE\" or piped in from stdin) consists of many rows of values in 4 columns.\n"
            << endl
            << endl;
       return -1;

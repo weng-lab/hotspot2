@@ -225,31 +225,6 @@ void SiteManager::processPvalue(const double& pval
     {
       deque<SiteRange>::iterator it_prev = itCurSiteNeedingPval;
       it_prev--;
-      /*
-      if (it_prev != m_sites.begin())
-	{
-	  cerr << "Coding error:  Line " << __LINE__ << ", deque of sites differs from what was expected."
-	    //	       << endl << endl;
-	       << "\nContains " << m_sites.size() << " elements." << endl;
-	  cerr << "Head element:  " << *(m_sites.front().chrom)
-	       << ':' << m_sites.front().begPos << '-' << m_sites.front().endPos
-	       << ", count = " << m_sites.front().count << ", P = " << m_sites.front().pval
-	       << ", -log10(P)*1000 = " << m_sites.front().negLog10P_scaled << endl;
-	  cerr << "Tail element:  " << *(m_sites.back().chrom)
-	       << ':' << m_sites.back().begPos << '-' << m_sites.back().endPos
-	       << ", count = " << m_sites.back().count << ", P = " << m_sites.back().pval
-	       << ", -log10(P)*1000 = " << m_sites.back().negLog10P_scaled << endl;
-	  cerr << "*itCurSiteNeedingPval:  " << *(itCurSiteNeedingPval->chrom)
-	       << ':' << itCurSiteNeedingPval->begPos << '-' << itCurSiteNeedingPval->endPos
-	       << ", count = " << itCurSiteNeedingPval->count << ", P = " << itCurSiteNeedingPval->pval
-	       << ", -log10(P)*1000 = " << itCurSiteNeedingPval->negLog10P_scaled << endl;
-	  cerr << "*it_prev:  " << *(it_prev->chrom)
-	       << ':' << it_prev->begPos << '-' << it_prev->endPos
-	       << ", count = " << it_prev->count << ", P = " << it_prev->pval
-	       << ", -log10(P)*1000 = " << it_prev->negLog10P_scaled << endl;
-	  exit(2);
-	}
-      */
       if (it_prev->chrom == itCurSiteNeedingPval->chrom && it_prev->endPos + 1 == itCurSiteNeedingPval->endPos &&
 #ifdef DEBUG
 	  it_prev->sampled == itCurSiteNeedingPval->sampled &&
@@ -1693,9 +1668,9 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
     }
 }
 
-bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength, /* const int& pvalDistnSize, */ const double fdr_threshold,
+bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength,
 			  const bool& writePvals, ofstream& ofsPvalData);
-bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength, /* const int& pvalDistnSize, */ const double fdr_threshold,
+bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength,
 			  const bool& writePvals, ofstream& ofsPvalData)
 {
   const int BUFSIZE(1000);
@@ -1790,10 +1765,7 @@ int main(int argc, char* argv[])
   int background_size = 50001;
   int sampling_interval = 1;
   int smoothing_parameter = 5; // recommend ca. 15 when the maximum # of sampled observations is ca. 250
-//  int num_pvals = 1000000;
   int write_pvals = 0;
-  int seed = time(NULL);
-  double fdr_threshold = 1.00;
   int print_help = 0;
   int print_version = 0;
   string infilename = "";
@@ -1806,10 +1778,7 @@ int main(int argc, char* argv[])
     { "background_size", required_argument, 0, 'b' },
     { "sampling_interval", required_argument, 0, 'n' },
     { "smoothing_parameter", required_argument, 0, 'm' },
-//    { "num_pvals", required_argument, 0, 'p' },
     { "write_pvals", no_argument, &write_pvals, 1 },
-    { "seed", required_argument, 0, 's' },
-    { "fdr_threshold", required_argument, 0, 'f' },
     { "input", required_argument, 0, 'i' },
     { "output", required_argument, 0, 'o' },
     { "outputChromlist", required_argument, 0, 'c' },
@@ -1835,16 +1804,8 @@ int main(int argc, char* argv[])
         case 'm':
           smoothing_parameter = atoi(optarg);
           break;
-        case 'f':
-          ss << optarg;
-          ss >> fdr_threshold;
-          break;
         case 'p':
-//          num_pvals = atoi(optarg);
 	  outfilenamePvals = optarg;
-          break;
-        case 's':
-          seed = atoi(optarg);
           break;
         case 'i':
           infilename = optarg;
@@ -1895,18 +1856,11 @@ int main(int argc, char* argv[])
            << "  -b, --background_size=SIZE     The size of the background region (50001)\n"
            << "  -n, --sampling_interval=INT    How often (bp) to sample for null modeling (1)\n"
            << "  -m, --smoothing_prameter=INT   Smoothing parameter used in null modeling (5)\n"
-//           << "  -p, --num_pvals=COUNT          How many P-values to use to estimate FDR (1000000)\n"
            << "  --write_pvals                  Output P-values in column 6 (P-values are not output by default)\n"
-           << "  -f, --fdr_threshold=THRESHOLD  Do not output sites with FDR > THRESHOLD (1.00)\n"
-           << "  -s, --seed=SEED                A seed for random P-value sampling when the end of the input file is reached\n"
            << "  -i, --input=FILE               A file to read input from (STDIN)\n"
            << "  -o, --output=FILE              A file to write output to (STDOUT)\n"
-
-
 	   << "  -c, --outputChromlist=FILE     Output file to store chromName-to-int mapping\n"
-	   << "  -p, --outputPvals=FILE     Output file to store scaled -log10(P) values and # occurrences\n"
-
-
+	   << "  -p, --outputPvals=FILE         Output file to store scaled -log10(P) values and # occurrences\n"
 	   << "  -v, --version                  Print the version information and exit\n"
            << "  -h, --help                     Display this helpful help\n"
            << "\n"
@@ -1961,7 +1915,7 @@ int main(int argc, char* argv[])
       return -1;
     }
   
-  if (!parseAndProcessInput(background_size, sampling_interval, smoothing_parameter, /* num_pvals, */ fdr_threshold,
+  if (!parseAndProcessInput(background_size, sampling_interval, smoothing_parameter,
 			    write_pvals ? true : false, ofsPvals))
     return -1;
 
