@@ -3,7 +3,7 @@ SRCDIR = src
 CXX = g++
 CXXFLAGS = -O3 -pedantic -Wall -ansi -static
 
-TARGETS = hotspot2
+TARGETS = hotspot2_part1 hotspot2_part2
 EXE = $(addprefix $(BINDIR)/,$(TARGETS))
 
 default: $(EXE)

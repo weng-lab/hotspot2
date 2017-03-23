@@ -1,7 +1,7 @@
 // To compile this code into an executable,
 // simply enter the command
 //
-// $ g++ -O3 hotspot2.cpp -o hotspot2
+// $ g++ -O3 hotspot2_part1.cpp -o hotspot2_part1
 //
 // or substitute any desired name for the executable for the last argument.
 // The argument -O3 (capital "oh") generates optimized code;
@@ -29,6 +29,8 @@
 using namespace std;
 
 map<string, string*> interned;
+map<string*, int> chromAsInt;
+const double CHANGE_OF_SCALE(1000.);
 
 string* intern(string s)
 {
@@ -36,33 +38,34 @@ string* intern(string s)
   if (it == interned.end())
     {
       interned[s] = new string(s);
+      chromAsInt[interned[s]] = static_cast<int>(interned.size());
       return interned[s];
     }
   return it->second;
 }
 
-struct Site {
-  string* chrom;
-  string* ID;
-  double pval;
-  double qval;
-  long endPos; // beg = endPos - 1
-  int count;
-  bool hasPval; // whether a P-value has been computed for the site
-#ifdef DEBUG
-  bool sampled;
-#endif
-};
+int idxFromChrom(string* ptr)
+{
+  map<string*, int>::const_iterator it = chromAsInt.find(ptr);
+  if (chromAsInt.end() == it)
+    {
+      cerr << "Coding error:  Line " << __LINE__ << ", failed to find \""
+	   << *ptr << "\" in the lookup table." << endl << endl;
+      exit(2);
+    }
+  return it->second;
+}
 
 struct SiteRange {
   string* chrom;
   string* ID;
   double pval;
-  double qval;
+  //  double qval;
   long begPos;
   long endPos;
   int count;
-  bool hasPval; // whether a P-value has been computed for the site
+  int negLog10P_scaled; // -log10(P-value), scaled and rounded to limit the number of sig. digits
+  bool hasPval; // whether a P-value has been computed for the site range
 #ifdef DEBUG
   bool sampled;
 #endif
@@ -85,7 +88,7 @@ double nextProbNegativeBinomial(const int& k, const double& prevVal, const vecto
            << endl;
       exit(1);
     }
-  const double &m(params[0]), r(params[1]), kk(static_cast<double>(k));
+  const double &m(params[0]), &r(params[1]), kk(static_cast<double>(k));
   if (r + m == 0)
     {
       cerr << "Error:  nextProbNegativeBinomial() received m = " << m
@@ -114,7 +117,7 @@ double nextProbBinomial(const int& k, const double& prevVal, const vector<double
            << endl;
       exit(1);
     }
-  const double &m(params[0]), v(params[1]), nn(params[2]), kk(static_cast<double>(k));
+  const double &m(params[0]), &v(params[1]), &nn(params[2]), kk(static_cast<double>(k));
   if (kk > nn + 0.5) // really "if kk > nn," but we could have "kk == nn" with nn=15.99999 and kk=16.000001, hence the 0.5
     return 0.;
   if (v < 1.0e-8)
@@ -148,375 +151,115 @@ double nextProbPoisson(const int& k, const double& prevVal, const vector<double>
   return prevVal * m / kk;
 }
 
-class PvalueManager {
-public:
-  PvalueManager(const int& n, double fdr_threshold)
-      : m_fdrThold(fdr_threshold)
-  {
-    initialize(n);
-  }
-  bool addObsP(const double& pval);
-  void computeFDRvals(void);
-  double FDR(const double& pval);
-  void reset(void);
-  inline double thresholdFDR() const { return m_fdrThold; }
-private:
-  PvalueManager();
-  void initialize(const int& n);
-  const double m_fdrThold;
-  vector<double> m_curObsPvals;
-  vector<double> m_prevObsPvals;
-  map<double, double> m_p_to_q;
-  int m_curNumObsP;
-  int m_N;
-};
-
-void PvalueManager::initialize(const int& n)
-{
-  m_curObsPvals.resize(n, -1.);
-  m_N = n;
-  m_curNumObsP = 0;
-
-  // m_prevObsPvals needs to be empty upon initialization
-}
-
-bool PvalueManager::addObsP(const double& pval)
-{
-  if (m_curNumObsP == m_N)
-    return false;
-  m_curObsPvals[m_curNumObsP++] = pval;
-  return true;
-}
-
-void PvalueManager::reset(void)
-{
-  m_prevObsPvals = m_curObsPvals;
-  m_p_to_q.clear();
-  m_curNumObsP = 0;
-}
-
-void PvalueManager::computeFDRvals(void)
-{
-  if (m_curNumObsP < m_N)
-    {
-      if (!m_prevObsPvals.empty())
-        {
-          // If we're processing the very last sites in the input file,
-          // then almost certainly we have fewer than the desired number
-          // of unprocessed P-values to process.
-          // Select previously-processed P-values at random
-          // to fill in the current distributions,
-          // until we have the desired sizes for the distributions.
-          // The following implementation, which is much faster
-          // than a conventional implementation of sampling without replacement,
-          // is called reservoir sampling, "algorithm R"
-          // (https://en.wikipedia.org/wiki/Reservoir_sampling#Algorithm_R).
-          int need = m_N - m_curNumObsP;
-          for (int i = 0; i < need; i++)
-            {
-              m_curObsPvals[m_curNumObsP + i] = m_prevObsPvals[i];
-            }
-          for (int i = need; i < m_N; i++)
-            {
-              int j = rand() % i;
-              if (j < need)
-                m_curObsPvals[m_curNumObsP + j] = m_prevObsPvals[i];
-            }
-          m_curNumObsP += need;
-        }
-      else
-        {
-          // This means the total number of input sites is less than the number of P-values
-          // requested to be used for the FDR estimation.
-          // E.g., 438,217 P-values were processed but 1,000,000 P-values were expected
-          // to be used to estimate FDR.
-          cerr << "Number of P-values desired to be used for FDR estimation ("
-               << m_N << ") is too large;\nonly " << m_curNumObsP
-               << " sites were observed in the input data.\n"
-               << "Re-run using a lower target number of P-values." << endl
-               << endl;
-          exit(1);
-        }
-    }
-  sort(m_curObsPvals.begin(), m_curObsPvals.end());
-
-  // Benjamini-Hochberg:
-  // When the P-values are sorted in ascending order,
-  // FDR is controled at rate alpha when you identify the largest j for which
-  // m_curObsPvals[j] <= ((j+1)/m_N) * alpha
-  // (the "+1" is here because the 1st P-value is m_curObsPvals[0]),
-  // and call all observations with P <= m_curObsPvals[j] true discoveries.
-  //
-  // Turning this around, this implies that for arbitrary j indexing into sorted P-values,
-  // alpha = FDR = m_curObsPvals[j]*m_N/(j+1).
-  //
-  // Note #1:  adjacent sorted P-values can be almost identical while the
-  // factor of 1/(j+1) changes by a larger amount from the first j to the next,
-  // which would cause the FDR to not always strictly increase monotonically with P
-  // if we didn't test for and correct such occurrences.
-  // (E.g., 1M P-values, the 1000th P-value is 1.230e-8, the 1001st P-value is 1.231e-8;
-  // the lower P-value would get FDR = 1.230e-5, while the higher P-value
-  // would get a lower FDR of 1.22977e-5.)
-  //
-  // Note #2:  Just as identical count values can get different P-values
-  // when they appear in different background windows (different contexts for the counts),
-  // identical P-values can get different FDR estimates
-  // when they appear in different contexts (essentially larger background windows, e.g. ~1Mb).
-  // But the interpretation is reversed, because FDR is inversely proportional to P-value rank:
-  // a moderate count gets a lower P-value (more likely to be signal)
-  // when it appears in a window in which most observed counts are tiny,
-  // whereas a low P-value gets a higher FDR (more likely to be random noise)
-  // when it appears in a window in which most P-values are higher (worse) than it.
-
-  int idxOfFirstOccOfThisPval(0), idxOfLastOccOfThisPval(0);
-  double N(static_cast<double>(m_N)), prevFDR(-1.);
-  map<double, double>::iterator hint = m_p_to_q.begin(); // use this iterator to build the map faster
-  pair<double, double> PvalAndFDR;
-
-  while (idxOfLastOccOfThisPval < m_N && m_curObsPvals[idxOfLastOccOfThisPval] < 0.99)
-    {
-      while (idxOfLastOccOfThisPval < m_N && m_curObsPvals[idxOfLastOccOfThisPval] == m_curObsPvals[idxOfFirstOccOfThisPval])
-        idxOfLastOccOfThisPval++;
-      idxOfLastOccOfThisPval--;
-      PvalAndFDR.first = m_curObsPvals[idxOfLastOccOfThisPval];
-      PvalAndFDR.second = PvalAndFDR.first * N / static_cast<double>(idxOfLastOccOfThisPval + 1);
-      if (PvalAndFDR.second < prevFDR)
-        PvalAndFDR.second = prevFDR;
-      if (PvalAndFDR.second > 0.99999)
-        {
-          // Prevent erroneous reporting of "FDR > 1."
-          PvalAndFDR.second = 1.;
-          while (idxOfLastOccOfThisPval < m_N && m_curObsPvals[idxOfLastOccOfThisPval] < 0.99)
-            {
-              PvalAndFDR.first = m_curObsPvals[idxOfLastOccOfThisPval++];
-              hint = m_p_to_q.insert(hint, PvalAndFDR);
-            }
-          break;
-        }
-      hint = m_p_to_q.insert(hint, PvalAndFDR);
-      prevFDR = PvalAndFDR.second;
-      idxOfLastOccOfThisPval++;
-      idxOfFirstOccOfThisPval = idxOfLastOccOfThisPval;
-    }
-  if (m_curObsPvals[idxOfLastOccOfThisPval] > 0.99)
-    m_p_to_q.insert(hint, pair<double, double>(1., 1.));
-}
-
-inline double PvalueManager::FDR(const double& pval)
-{
-  if (pval > 0.99)
-    {
-      if (pval < 1.1)
-        return 1.;
-      else
-        return -1.; // signals a window with too few observations in it, with variance = 0
-    }
-
-  map<double, double>::const_iterator itUpper = m_p_to_q.lower_bound(pval); // lower bound is >= pval
-  map<double, double>::const_iterator itLower = itUpper;
-  if (m_p_to_q.begin() == itUpper)
-    return itUpper->second;
-  itLower--;
-  // Rounding errors can cause a floating-point number
-  // to be stored as a slightly different number, e.g. 0.01999999999 instead of 0.02.
-  // Return the FDR for the P-value that's closest to the query P-value.
-  if (fabs(itUpper->first - pval) / pval < fabs(pval - itLower->first) / pval)
-    return itUpper->second;
-  return itLower->second;
-}
-
 class SiteManager {
 public:
-  SiteManager(const int& n, const bool& writePvals) { initialize(n, writePvals); }
-  void addSite(const Site& s);
-  void setPvalue(const double& pval);
+  SiteManager(ofstream& ofsJustPvals) : m_ofsJustNegLog10PscaledAndNumOccs(ofsJustPvals) {};
+  void addSite(const SiteRange& s);
+  void processPvalue(const double& pval
 #ifdef DEBUG
-  void setSampled(const bool& sampled);
+		     , const bool& sampled
 #endif
-  void getFDRvalsAndWriteAndFlush(PvalueManager& pvm);
-  void writeLastUnreportedSite(const PvalueManager& pvm);
+		     );
+  void writeLastUnreportedSite();
 
 private:
   SiteManager(); // require the above constructor to be used
-  SiteManager(const SiteManager&); // ditto
-  void initialize(const int& n, const bool& writePvals);
-  vector<Site> m_sites;
-  int m_idxCurSiteNeedingPval;
-  int m_idxInsertHere;
-  int m_N;
-  bool m_writePvals;
-  SiteRange m_lastUnreportedSite;
+  SiteManager(const SiteManager&); // deny use of the copy constructor
+  //  void initialize(ofstream& ofsJustPvals);
+  deque<SiteRange> m_sites;
+  ofstream& m_ofsJustNegLog10PscaledAndNumOccs;
 };
 
-void SiteManager::initialize(const int& n, const bool& writePvals)
+void SiteManager::addSite(const SiteRange& s)
 {
-  m_sites.resize(n);
-  m_N = n;
-  m_writePvals = writePvals;
-  m_idxInsertHere = 0;
-  m_idxCurSiteNeedingPval = 0;
-  m_lastUnreportedSite.hasPval = false;
+  m_sites.push_back(s);
 }
 
-void SiteManager::addSite(const Site& s)
+inline void SiteManager::writeLastUnreportedSite()
 {
-  if (m_idxInsertHere < static_cast<int>(m_sites.size()))
-    m_sites[m_idxInsertHere++] = s;
-  else
+  if (!m_sites.empty())
     {
-      m_sites.push_back(s);
-      m_idxInsertHere++;
-    }
-}
-
-void SiteManager::setPvalue(const double& pval)
-{
-  m_sites[m_idxCurSiteNeedingPval].pval = pval;
-  m_sites[m_idxCurSiteNeedingPval++].hasPval = true;
-}
-
+      cout << idxFromChrom(m_sites.front().chrom) << '\t'
+	   << m_sites.front().begPos << '\t'
+	   << m_sites.front().endPos - m_sites.front().begPos << '\t'
+	   << m_sites.front().negLog10P_scaled;
 #ifdef DEBUG
-// Must ONLY be called immediately after setPvalue()
-void SiteManager::setSampled(const bool& sampled)
-{
-  m_sites[m_idxCurSiteNeedingPval - 1].sampled = sampled;
-}
+      cout << m_sites.front().sampled;
 #endif
-
-inline void SiteManager::writeLastUnreportedSite(const PvalueManager& pvm)
-{
-#ifdef DEBUG
-  if (m_lastUnreportedSite.qval <= pvm.thresholdFDR() && m_lastUnreportedSite.qval > -0.1)
-    {
-      cout << *m_lastUnreportedSite.chrom << '\t' << m_lastUnreportedSite.begPos << '\t'
-           << m_lastUnreportedSite.endPos << '\t' << *m_lastUnreportedSite.ID << '\t' << m_lastUnreportedSite.qval;
-      if (m_writePvals)
-        cout << '\t' << m_lastUnreportedSite.pval;
-      cout << '\t' << m_lastUnreportedSite.sampled << '\n';
-    }
-#else
-  if (m_lastUnreportedSite.qval <= pvm.thresholdFDR() && m_lastUnreportedSite.qval > -0.1)
-    {
-      cout << *m_lastUnreportedSite.chrom << '\t' << m_lastUnreportedSite.begPos << '\t'
-           << m_lastUnreportedSite.endPos << '\t' << *m_lastUnreportedSite.ID << '\t' << m_lastUnreportedSite.qval;
-      if (m_writePvals)
-        cout << '\t' << m_lastUnreportedSite.pval;
       cout << '\n';
+      m_ofsJustNegLog10PscaledAndNumOccs << m_sites.front().negLog10P_scaled << '\t'
+					 << m_sites.front().endPos - m_sites.front().begPos << '\n';
     }
-#endif // DEBUG
 }
 
-void SiteManager::getFDRvalsAndWriteAndFlush(PvalueManager& pvm)
+
+void SiteManager::processPvalue(const double& pval
+#ifdef DEBUG
+				, const bool& sampled
+#endif
+				)
 {
-  pvm.computeFDRvals();
-
-  if (0 != m_idxCurSiteNeedingPval && !m_lastUnreportedSite.hasPval)
-    {
-      // initialize m_lastUnreportedSite
-      m_lastUnreportedSite.chrom = m_sites[0].chrom;
-      m_lastUnreportedSite.ID = m_sites[0].ID;
-      m_lastUnreportedSite.pval = m_sites[0].pval;
-      m_lastUnreportedSite.qval = pvm.FDR(m_sites[0].pval);
-      m_lastUnreportedSite.begPos = m_sites[0].endPos - 1;
-      m_lastUnreportedSite.endPos = m_sites[0].endPos;
-      m_lastUnreportedSite.count = m_sites[0].count;
-      m_lastUnreportedSite.hasPval = m_sites[0].hasPval;
-#ifdef DEBUG
-      m_lastUnreportedSite.sampled = m_sites[0].sampled;
-#endif
-    }
-
-  int i = 0;
-  const double SMALL_VALUE(5.0e-6); // collapse adjacent entries if their values are identical to within ~5 significant digits
-
-  while (i < m_idxCurSiteNeedingPval)
-    {
-      double diffRatioP, diffRatioQ;
-      int diffEndPos = m_sites[i].chrom == m_lastUnreportedSite.chrom ? m_sites[i].endPos - m_lastUnreportedSite.endPos : 999999;
-      m_sites[i].qval = pvm.FDR(m_sites[i].pval);
-      if (diffEndPos <= 1) // <= instead of == because we initialize m_lastUnreportedSite to the first site encountered
-        {
-          // sites are adjacent
-          if (0 == m_sites[i].pval || 0 == m_lastUnreportedSite.pval) // then we need to avoid dividing by 0
-            {
-              if (m_sites[i].pval == m_lastUnreportedSite.pval)
-                {
-#ifdef DEBUG
-                  if (m_sites[i].sampled == m_lastUnreportedSite.sampled)
-                    {
-#endif
-                      m_lastUnreportedSite.endPos = m_sites[i].endPos;
-                      i++;
-                      continue;
-#ifdef DEBUG
-                    }
-#endif
-                }
-            }
-          else
-            {
-              if (m_sites[i].pval > m_lastUnreportedSite.pval)
-                diffRatioP = (m_sites[i].pval - m_lastUnreportedSite.pval) / m_lastUnreportedSite.pval;
-              else
-                diffRatioP = (m_lastUnreportedSite.pval - m_sites[i].pval) / m_sites[i].pval;
-              if (m_sites[i].qval > m_lastUnreportedSite.qval)
-                diffRatioQ = (m_sites[i].qval - m_lastUnreportedSite.qval) / m_lastUnreportedSite.qval;
-              else
-                diffRatioQ = (m_lastUnreportedSite.qval - m_sites[i].qval) / m_sites[i].qval;
-              if (diffRatioP <= SMALL_VALUE && diffRatioQ <= SMALL_VALUE)
-                {
-#ifdef DEBUG
-                  if (m_sites[i].sampled == m_lastUnreportedSite.sampled)
-                    {
-#endif
-                      m_lastUnreportedSite.endPos = m_sites[i].endPos;
-                      i++;
-                      continue;
-#ifdef DEBUG
-                    }
-#endif
-                }
-            }
-        }
-
-      writeLastUnreportedSite(pvm);
-
-      m_lastUnreportedSite.chrom = m_sites[i].chrom;
-      m_lastUnreportedSite.ID = m_sites[i].ID;
-      m_lastUnreportedSite.pval = m_sites[i].pval;
-      m_lastUnreportedSite.qval = m_sites[i].qval;
-      m_lastUnreportedSite.begPos = m_sites[i].endPos - 1;
-      m_lastUnreportedSite.endPos = m_sites[i].endPos;
-      m_lastUnreportedSite.count = m_sites[i].count;
-      m_lastUnreportedSite.hasPval = m_sites[i].hasPval;
-#ifdef DEBUG
-      m_lastUnreportedSite.sampled = m_sites[i].sampled;
-#endif
-
-      i++;
-    }
-  // Now move any remaining sites (unprocessed) to the beginning of the m_sites vector.
-  if (i == m_idxInsertHere)
-    {
-      // All stored sites received an FDR and were written to the output file.
-      // There are no unprocessed sites to move.
-      m_sites.resize(m_N);
-      m_sites[0].hasPval = false;
-      m_idxInsertHere = 0;
-    }
+  int negLog10P_scaled;
+  if (pval < 0 || pval > 1)
+    negLog10P_scaled = 0;
   else
+    negLog10P_scaled = static_cast<int>(floor(-log10(pval) * CHANGE_OF_SCALE + 0.5));
+  deque<SiteRange>::iterator itCurSiteNeedingPval(m_sites.begin());
+  while (itCurSiteNeedingPval != m_sites.end() && itCurSiteNeedingPval->hasPval)
+    itCurSiteNeedingPval++;
+  if (m_sites.end() == itCurSiteNeedingPval)
     {
-      vector<Site>::iterator it = m_sites.begin();
-      it += i;
-      copy(it, m_sites.end(), m_sites.begin());
-      // Liberate a little space, in case it's helpful.
-      int numUnprocessedSites = m_sites.size() - i;
-      m_sites.resize(max(numUnprocessedSites, m_N));
-      m_idxInsertHere = numUnprocessedSites;
+      cerr << "Error:  line " << __LINE__ << ", m_sites is empty or already filled with P-values"
+	   << endl << endl;
+      exit(2);
     }
-  m_idxCurSiteNeedingPval = 0;
 
-  pvm.reset();
+  itCurSiteNeedingPval->pval = pval;
+  itCurSiteNeedingPval->negLog10P_scaled = negLog10P_scaled;
+  itCurSiteNeedingPval->hasPval = true;
+#ifdef DEBUG
+  itCurSiteNeedingPval->sampled = sampled;
+#endif
+
+  if (itCurSiteNeedingPval != m_sites.begin())
+    {
+      deque<SiteRange>::iterator it_prev = itCurSiteNeedingPval;
+      it_prev--;
+      /*
+      if (it_prev != m_sites.begin())
+	{
+	  cerr << "Coding error:  Line " << __LINE__ << ", deque of sites differs from what was expected."
+	    //	       << endl << endl;
+	       << "\nContains " << m_sites.size() << " elements." << endl;
+	  cerr << "Head element:  " << *(m_sites.front().chrom)
+	       << ':' << m_sites.front().begPos << '-' << m_sites.front().endPos
+	       << ", count = " << m_sites.front().count << ", P = " << m_sites.front().pval
+	       << ", -log10(P)*1000 = " << m_sites.front().negLog10P_scaled << endl;
+	  cerr << "Tail element:  " << *(m_sites.back().chrom)
+	       << ':' << m_sites.back().begPos << '-' << m_sites.back().endPos
+	       << ", count = " << m_sites.back().count << ", P = " << m_sites.back().pval
+	       << ", -log10(P)*1000 = " << m_sites.back().negLog10P_scaled << endl;
+	  cerr << "*itCurSiteNeedingPval:  " << *(itCurSiteNeedingPval->chrom)
+	       << ':' << itCurSiteNeedingPval->begPos << '-' << itCurSiteNeedingPval->endPos
+	       << ", count = " << itCurSiteNeedingPval->count << ", P = " << itCurSiteNeedingPval->pval
+	       << ", -log10(P)*1000 = " << itCurSiteNeedingPval->negLog10P_scaled << endl;
+	  cerr << "*it_prev:  " << *(it_prev->chrom)
+	       << ':' << it_prev->begPos << '-' << it_prev->endPos
+	       << ", count = " << it_prev->count << ", P = " << it_prev->pval
+	       << ", -log10(P)*1000 = " << it_prev->negLog10P_scaled << endl;
+	  exit(2);
+	}
+      */
+      if (it_prev->chrom == itCurSiteNeedingPval->chrom && it_prev->endPos + 1 == itCurSiteNeedingPval->endPos &&
+#ifdef DEBUG
+	  it_prev->sampled == itCurSiteNeedingPval->sampled &&
+#endif
+	  it_prev->negLog10P_scaled == itCurSiteNeedingPval->negLog10P_scaled)
+	itCurSiteNeedingPval->begPos = it_prev->begPos;
+      else
+	writeLastUnreportedSite();
+      m_sites.pop_front();
+    }
 }
 
 struct SiteData {
@@ -539,12 +282,12 @@ public:
   void setBounds(const string* pChrom, const int posL, const int posR);
   const int& getRightEdge(void) const { return m_posR; };
   const bool& isSliding(void) const { return m_sliding; };
-  void add(const Site& s);
-  void computePandFlush(PvalueManager& pm, SiteManager& sm);
-  void slideAndCompute(const Site& s, PvalueManager& pm, SiteManager& sm);
+  void add(const SiteRange& s);
+  void computePandFlush(SiteManager& sm);
+  void slideAndCompute(const SiteRange& s, SiteManager& sm);
 
 private:
-  BackgroundRegionManager(void); // require use of the constructor with 1 argument
+  BackgroundRegionManager(void); // require use of the constructor with 2 arguments
   BackgroundRegionManager(const BackgroundRegionManager&); // ditto
   void findCutoff(void);
   void computeStats(const int& this_k);
@@ -621,7 +364,7 @@ void BackgroundRegionManager::setBounds(const string* pChrom, const int posL, co
   m_nextPosToSample = m_posL;
 }
 
-void BackgroundRegionManager::add(const Site& s)
+void BackgroundRegionManager::add(const SiteRange& s)
 {
   if (s.endPos > m_posR)
     {
@@ -1137,9 +880,9 @@ double BackgroundRegionManager::getPvalue(const unsigned int& k)
 // and anytime there's a gap in the data that's wider than half the background window width.
 // It computes P-values for all sites in the current background window that need them,
 // passes them along, and "flushes" the distribution (deletes it, resets accompanying variables).
-void BackgroundRegionManager::computePandFlush(PvalueManager& pm, SiteManager& sm)
+void BackgroundRegionManager::computePandFlush(SiteManager& sm)
 {
-  if (m_distn.empty())
+ if (m_distn.empty())
     return;
 
   if (!m_sliding || m_needToUpdate_kcutoff)
@@ -1160,13 +903,12 @@ void BackgroundRegionManager::computePandFlush(PvalueManager& pm, SiteManager& s
             pval = getPvalue(m_sitesInRegion_leftHalf.front().count);
           else
             pval = 999.;
-          if (!pm.addObsP(pval))
-            {
-              sm.getFDRvalsAndWriteAndFlush(pm); // resets pm
-              pm.addObsP(pval);
-            }
-          sm.setPvalue(pval); // pass this P-value along to the corresponding site
-        }
+	  sm.processPvalue(pval // pass this P-value along to the corresponding site
+#ifdef DEBUG
+			   , m_sitesInRegion_leftHalf.front().sampled
+#endif
+			   );
+	}
       m_sitesInRegion_leftHalf.pop_front();
     }
   while (!m_sitesInRegion_rightHalf.empty())
@@ -1178,12 +920,11 @@ void BackgroundRegionManager::computePandFlush(PvalueManager& pm, SiteManager& s
             pval = getPvalue(m_sitesInRegion_rightHalf.front().count);
           else
             pval = 999.;
-          if (!pm.addObsP(pval))
-            {
-              sm.getFDRvalsAndWriteAndFlush(pm); // resets pm
-              pm.addObsP(pval);
-            }
-          sm.setPvalue(pval); // pass this P-value along to the corresponding site
+	  sm.processPvalue(pval // pass this P-value along to the corresponding site
+#ifdef DEBUG
+			   , m_sitesInRegion_rightHalf.front().sampled
+#endif
+			   );
         }
       m_sitesInRegion_rightHalf.pop_front();
     }
@@ -1215,7 +956,7 @@ void BackgroundRegionManager::computePandFlush(PvalueManager& pm, SiteManager& s
 //
 // Strictly speaking, if m_sliding == false and the incoming site lands at the right boundary,
 // no "slide" is performed, just an append operation and computations.
-void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm, SiteManager& sm)
+void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& sm)
 {
   if (m_posR > s.endPos)
     {
@@ -1257,15 +998,11 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
             pval = getPvalue(it->count);
           else
             pval = 999.;
-          if (!pvm.addObsP(pval))
-            {
-              sm.getFDRvalsAndWriteAndFlush(pvm); // resets pvm
-              pvm.addObsP(pval);
-            }
-          sm.setPvalue(pval); // pass this P-value along for the corresponding site
-#if DEBUG
-          sm.setSampled(it->sampled);
+	  sm.processPvalue(pval
+#ifdef DEBUG
+			   , it->sampled
 #endif
+			   );
           it->hasPval = true;
         }
 
@@ -1283,15 +1020,13 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
             pval = getPvalue(m_sitesInRegion_rightHalf.front().count);
           else
             pval = 999.;
-          if (!pvm.addObsP(pval))
-            {
-              sm.getFDRvalsAndWriteAndFlush(pvm); // resets pvm
-              pvm.addObsP(pval);
-            }
-          sm.setPvalue(pval); // pass this P-value along for the corresponding site
+	  
+	  // pass this P-value along for the corresponding site
+	  sm.processPvalue(pval
 #ifdef DEBUG
-          sm.setSampled(m_sitesInRegion_rightHalf.front().sampled);
+			   , m_sitesInRegion_rightHalf.front().sampled
 #endif
+			   );
           m_sitesInRegion_rightHalf.front().hasPval = true;
         }
       m_sliding = true;
@@ -1475,15 +1210,12 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
             pval = getPvalue(m_sitesInRegion_rightHalf.front().count);
           else
             pval = 999.;
-          if (!pvm.addObsP(pval))
-            {
-              sm.getFDRvalsAndWriteAndFlush(pvm); // resets pvm
-              pvm.addObsP(pval);
-            }
-          sm.setPvalue(pval); // pass this P-value along for the corresponding site
+	  // pass this P-value along for the corresponding site
+	  sm.processPvalue(pval
 #ifdef DEBUG
-          sm.setSampled(m_sitesInRegion_rightHalf.front().sampled);
+			   , m_sitesInRegion_rightHalf.front().sampled
 #endif
+			   );
           m_sitesInRegion_rightHalf.front().hasPval = true;
         }
     } // end of "while sliding and not bringing in any new observations because there's missing data there"
@@ -1578,15 +1310,12 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
             pval = getPvalue(m_sitesInRegion_rightHalf.front().count);
           else
             pval = 999.;
-          if (!pvm.addObsP(pval))
-            {
-              sm.getFDRvalsAndWriteAndFlush(pvm); // resets pvm
-              pvm.addObsP(pval);
-            }
-          sm.setPvalue(pval); // pass this P-value along for the corresponding site
+	  // pass this P-value along for the corresponding site
+	  sm.processPvalue(pval
 #ifdef DEBUG
-          sm.setSampled(m_sitesInRegion_rightHalf.front().sampled);
+			   , m_sitesInRegion_rightHalf.front().sampled
 #endif
+			   );
           m_sitesInRegion_rightHalf.front().hasPval = true;
         }
 
@@ -1939,15 +1668,11 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
         pval = getPvalue(m_sitesInRegion_rightHalf.front().count);
       else
         pval = 999.;
-      if (!pvm.addObsP(pval))
-        {
-          sm.getFDRvalsAndWriteAndFlush(pvm); // resets pvm
-          pvm.addObsP(pval);
-        }
-      sm.setPvalue(pval); // pass this P-value along for the corresponding site
+      sm.processPvalue(pval
 #ifdef DEBUG
-      sm.setSampled(m_sitesInRegion_rightHalf.front().sampled);
+		       , m_sitesInRegion_rightHalf.front().sampled
 #endif
+		       );
       m_sitesInRegion_rightHalf.front().hasPval = true;
     }
 
@@ -1968,27 +1693,26 @@ void BackgroundRegionManager::slideAndCompute(const Site& s, PvalueManager& pvm,
     }
 }
 
-bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength, const int& pvalDistnSize, const double fdr_threshold,
-    const bool& writePvals);
-bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength, const int& pvalDistnSize, const double fdr_threshold,
-    const bool& writePvals)
+bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength, /* const int& pvalDistnSize, */ const double fdr_threshold,
+			  const bool& writePvals, ofstream& ofsPvalData);
+bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength, /* const int& pvalDistnSize, */ const double fdr_threshold,
+			  const bool& writePvals, ofstream& ofsPvalData)
 {
   const int BUFSIZE(1000);
   char buf[BUFSIZE], *p;
   long linenum(0);
   int fieldnum;
   const int halfWindowSize(windowSize / 2); // integer division
-  Site curSite, prevSite;
-
+  SiteRange curSite, prevSite;
+  
   BackgroundRegionManager brm(samplingInterval, MAlength);
-  SiteManager sm(pvalDistnSize, writePvals);
-  PvalueManager pvm(pvalDistnSize, fdr_threshold);
+  SiteManager sm(ofsPvalData);
 
-  prevSite.chrom = intern(string("xxxNONExxx"));
+  prevSite.chrom = NULL;
   prevSite.endPos = -1;
+  curSite.ID = NULL;
   curSite.hasPval = false;
   curSite.pval = -1.;
-  curSite.qval = -1.;
 #ifdef DEBUG
   curSite.sampled = false;
 #endif
@@ -2018,23 +1742,25 @@ bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, co
       fieldnum++;
       if (!(p = strtok(NULL, "\t")))
         goto MissingField;
-      curSite.ID = intern(string(p));
+      //curSite.ID = intern(string(p));
       fieldnum++;
       if (!(p = strtok(NULL, "\t")))
         goto MissingField;
       curSite.count = atoi(p);
       // ignore any further fields
 
+      // When contiguous stretches of sites with identical counts are observed
+      // within a line of input, they need to be processed one site at a time,
+      // for statistical reasons.
       for (int siteEnd = start + 1; siteEnd <= end; siteEnd++)
         {
           curSite.endPos = siteEnd;
+	  curSite.begPos = curSite.endPos - 1;
 
           if (curSite.chrom != prevSite.chrom || curSite.endPos > prevSite.endPos + halfWindowSize)
             {
-              brm.computePandFlush(pvm, sm); // Compute P-values for all unprocessed sites in the window.
-              // Whenever a new batch of pvalDistnSize P-values has been computed,
-              // pvm estimates FDR for them, sm gets FDR from pvm and writes results,
-              // and pvm's counter gets reset to 0.
+              brm.computePandFlush(sm); // Compute P-values for all unprocessed sites in the window.
+	      // Writes values to disk.
               // This method removes all count data from brm.
               brm.setBounds(curSite.chrom, curSite.endPos, curSite.endPos + windowSize - 1);
             }
@@ -2045,15 +1771,14 @@ bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, co
               sm.addSite(curSite);
             }
           else
-            brm.slideAndCompute(curSite, pvm, sm); // calls sm.addSite(curSite)
+            brm.slideAndCompute(curSite, sm); // calls sm.addSite(curSite)
 
           prevSite = curSite;
         }
     }
 
-  brm.computePandFlush(pvm, sm); // See explanatory comment above.
-  sm.getFDRvalsAndWriteAndFlush(pvm);
-  sm.writeLastUnreportedSite(pvm);
+  brm.computePandFlush(sm); // See explanatory comment above.
+  sm.writeLastUnreportedSite();
 
   return true;
 }
@@ -2065,7 +1790,7 @@ int main(int argc, char* argv[])
   int background_size = 50001;
   int sampling_interval = 1;
   int smoothing_parameter = 5; // recommend ca. 15 when the maximum # of sampled observations is ca. 250
-  int num_pvals = 1000000;
+//  int num_pvals = 1000000;
   int write_pvals = 0;
   int seed = time(NULL);
   double fdr_threshold = 1.00;
@@ -2073,18 +1798,22 @@ int main(int argc, char* argv[])
   int print_version = 0;
   string infilename = "";
   string outfilename = "";
+  string outfilenameChromNames = "";
+  string outfilenamePvals = "";
 
   // Long-opt definitions
   static struct option long_options[] = {
     { "background_size", required_argument, 0, 'b' },
     { "sampling_interval", required_argument, 0, 'n' },
     { "smoothing_parameter", required_argument, 0, 'm' },
-    { "num_pvals", required_argument, 0, 'p' },
+//    { "num_pvals", required_argument, 0, 'p' },
     { "write_pvals", no_argument, &write_pvals, 1 },
     { "seed", required_argument, 0, 's' },
     { "fdr_threshold", required_argument, 0, 'f' },
     { "input", required_argument, 0, 'i' },
     { "output", required_argument, 0, 'o' },
+    { "outputChromlist", required_argument, 0, 'c' },
+    { "outputPvals", required_argument, 0, 'p' }, // note we had been using 'p' for num_pvals
     { "help", no_argument, &print_help, 1 },
     { "version", no_argument, &print_version, 1 },
     { 0, 0, 0, 0 }
@@ -2093,7 +1822,7 @@ int main(int argc, char* argv[])
   // Parse options
   char c;
   stringstream ss; // Used for parsing doubles (allows scientific notation)
-  while ((c = getopt_long(argc, argv, "b:f:m:n:p:s:i:o:hvV", long_options, NULL)) != -1)
+  while ((c = getopt_long(argc, argv, "b:f:m:n:p:s:i:o:c:hvV", long_options, NULL)) != -1)
     {
       switch (c)
         {
@@ -2111,7 +1840,8 @@ int main(int argc, char* argv[])
           ss >> fdr_threshold;
           break;
         case 'p':
-          num_pvals = atoi(optarg);
+//          num_pvals = atoi(optarg);
+	  outfilenamePvals = optarg;
           break;
         case 's':
           seed = atoi(optarg);
@@ -2122,7 +1852,10 @@ int main(int argc, char* argv[])
         case 'o':
           outfilename = optarg;
           break;
-        case 'h':
+	case 'c':
+          outfilenameChromNames = optarg;
+          break;
+	case 'h':
           print_help = 1;
           break;
         case 'v':
@@ -2138,6 +1871,21 @@ int main(int argc, char* argv[])
         }
     }
 
+  if (!print_help && !print_version && outfilenameChromNames.empty())
+    {
+      cerr << "Error:  No filename supplied for (temporary) output file of integer-to-chromosomeName mapping."
+	   << endl
+	   << endl;
+      print_help = 1;
+    }
+  if (!print_help && !print_version && outfilenamePvals.empty())
+    {
+      cerr << "Error:  No filename supplied for (temporary) output file of scaled -log10(P) values."
+	   << endl
+	   << endl;
+      print_help = 1;
+    }
+  
   // Print usage and exit if necessary
   if (print_help)
     {
@@ -2147,13 +1895,19 @@ int main(int argc, char* argv[])
            << "  -b, --background_size=SIZE     The size of the background region (50001)\n"
            << "  -n, --sampling_interval=INT    How often (bp) to sample for null modeling (1)\n"
            << "  -m, --smoothing_prameter=INT   Smoothing parameter used in null modeling (5)\n"
-           << "  -p, --num_pvals=COUNT          How many P-values to use to estimate FDR (1000000)\n"
+//           << "  -p, --num_pvals=COUNT          How many P-values to use to estimate FDR (1000000)\n"
            << "  --write_pvals                  Output P-values in column 6 (P-values are not output by default)\n"
            << "  -f, --fdr_threshold=THRESHOLD  Do not output sites with FDR > THRESHOLD (1.00)\n"
            << "  -s, --seed=SEED                A seed for random P-value sampling when the end of the input file is reached\n"
            << "  -i, --input=FILE               A file to read input from (STDIN)\n"
            << "  -o, --output=FILE              A file to write output to (STDOUT)\n"
-           << "  -v, --version                  Print the version information and exit\n"
+
+
+	   << "  -c, --outputChromlist=FILE     Output file to store chromName-to-int mapping\n"
+	   << "  -p, --outputPvals=FILE     Output file to store scaled -log10(P) values and # occurrences\n"
+
+
+	   << "  -v, --version                  Print the version information and exit\n"
            << "  -h, --help                     Display this helpful help\n"
            << "\n"
            << " output (sent to stdout) will be a .bed5 file with FDR in field 5\n"
@@ -2173,8 +1927,6 @@ int main(int argc, char* argv[])
 
   ios_base::sync_with_stdio(false); // calling this static method in this way turns off checks, speeds up I/O
 
-  srand(seed);
-
   if (!infilename.empty() && infilename != "-")
     {
       if (freopen(infilename.c_str(), "r", stdin) == NULL)
@@ -2192,8 +1944,29 @@ int main(int argc, char* argv[])
         }
     }
 
-  if (!parseAndProcessInput(background_size, sampling_interval, smoothing_parameter, num_pvals, fdr_threshold, write_pvals ? true : false))
+  ofstream ofsIntToChrnameMapping(outfilenameChromNames.c_str());
+  if (!ofsIntToChrnameMapping)
+    {
+      cerr << "Error:  Unable to open file \"" << outfilenameChromNames << "\" for write."
+	   << endl
+	   << endl;
+      return -1;
+    }
+  ofstream ofsPvals(outfilenamePvals.c_str());
+  if (!ofsPvals)
+    {
+      cerr << "Error:  Unable to open file \"" << outfilenamePvals << "\" for write."
+	   << endl
+	   << endl;
+      return -1;
+    }
+  
+  if (!parseAndProcessInput(background_size, sampling_interval, smoothing_parameter, /* num_pvals, */ fdr_threshold,
+			    write_pvals ? true : false, ofsPvals))
     return -1;
 
+  for (map<string*, int>::const_iterator it = chromAsInt.begin(); it != chromAsInt.end(); it++)
+    ofsIntToChrnameMapping << it->second << '\t' << *(it->first) << '\n';
+  
   return 0;
 }
