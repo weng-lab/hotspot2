@@ -38,12 +38,12 @@ Note:  `extractCenterSites.sh` only needs to be run once per genome.  (If analys
 window sizes are desired, `extractCenterSites.sh` needs to be run once per window size per genome.)
 
 Hotspots are called for an input alignment file in BAM format via a set of scripts that are
-each executed by the `hotspot2.sh` script.  This script also executes a program that needs to
-be compiled or "made" on the computer where hotspot2.sh will run.  To make the hotspot2 program,
-simply type the command `make` from within the hotspot2 directory.  (This will create the program
-hotspot2 in the subdirectory bin.)
+each executed by the `hotspot2.sh` script.  This script also executes two programs that need to
+be compiled or "made" on the computer where hotspot2.sh will run.  To make these programs
+(hotspot2_part1 and hotspot2_part2), simply type the command `make` from within the hotspot2 directory.
+(This will create the programs hotspot2_part1 and hotspot2_part2 in the subdirectory named "bin.")
 
-Note:  After the program hotspot2 is made, it must be added to the user's PATH.
+Note:  After the programs hotspot2_part1 and hotspot2_part2 are made, they must be added to the user's PATH.
 
 Once the hotspot2 program has been compiled and the center sites file has been created
 by running `extractCenterSites.sh`, `hotspot2.sh` will be ready to run.  To see the usage information
