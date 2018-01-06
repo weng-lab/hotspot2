@@ -111,8 +111,8 @@ annotate() {
     'BEGIN{
       OFS="\t"
       c=-0.4342944819
-      max=100
-      max_col5=1000
+      max=10000
+      max_col5=100000
     }
     {
       if (0 == $4) {
