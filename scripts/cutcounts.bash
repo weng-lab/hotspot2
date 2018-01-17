@@ -2,7 +2,7 @@
 # This is a modified version of the cutcounts script used in stampipes
 set -x -e -o pipefail
 
-if [[ $# != 5 && $# != 6 ]]; then
+if [[ $# != 6 && $# != 7 ]]; then
   echo "Usage: $0 in.bam cutcounts.starch fragments.starch totalcuts.txt chromSizes [mappableRegions.starch]" >&2
   echo -e "where the first three arguments after the BAM filename contain names of your choosing"
   echo -e "for output files that will be created, and chromSizes is a .bed or .starch file of chromosome sizes,"
@@ -16,9 +16,10 @@ CUTCOUNTS=$2
 FRAGMENTS=$3
 TOTALCUTSFILE=$4
 CHROM_SIZES=$5
+TMPDIR=$6
 MAPPABLE_REGIONS=""
-if [[ $# == 6 ]]; then
-  MAPPABLE_REGIONS=$6
+if [[ $# == 7 ]]; then
+  MAPPABLE_REGIONS=$7
   if [ ! -s "$MAPPABLE_REGIONS" ]; then
     echo -e "Error:  File \"$MAPPABLE_REGIONS\" supplied to $0 was not found, or is empty."
     exit 2

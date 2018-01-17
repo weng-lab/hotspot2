@@ -36,6 +36,7 @@ Options:
     -S SMOOTHING_PARAM    (uppercase 'S')
                           Advanced option, to influence curve fitting (5).
                           Should be a small odd integer >=5; for noisy data, try 17.
+    -t TMPDIR             Temporary directory; defaults to mktemp -d
 
     Neighborhood and window sizes are specified as the distance from the edge
     to the center - i.e, a 100bp neighborhood size is a 201bp window.
@@ -79,7 +80,7 @@ SMOOTHING_PARAM=""
 
 # Note: Options in the string that are not immediately followed by ':'
 # will not get a value read for them.  Examples are h and P.
-while getopts 'hc:C:M:e:f:F:m:n:p:s:S:w:P' opt; do
+while getopts 'hc:C:M:e:f:F:m:n:p:s:S:w:Pt:' opt; do
   case "$opt" in
     h)
       usage
@@ -116,6 +117,9 @@ while getopts 'hc:C:M:e:f:F:m:n:p:s:S:w:P' opt; do
       ;;
     w)
       BACKGROUND_WINDOW_SIZE=$((2 * OPTARG + 1))
+      ;;
+    t)
+      TMPDIR=$OPTARG
       ;;
 
   esac
@@ -188,6 +192,7 @@ PEAKS_OUTFILE="$base.peaks.starch"
 SPOT_SCORE_OUTFILE="$base.SPOT.txt"
 
 clean=0
+mkdir -p "$TMPDIR"
 if [[ -z "$TMPDIR" ]]; then
   TMPDIR=$(mktemp -d)
   clean=1
@@ -199,7 +204,7 @@ TEMP_PVALS=${TMPDIR}/temp_pvals.txt
 TEMP_INTERMEDIATE_FILE_HOTSPOT2PART1=${TMPDIR}/temp_intermediateFile_hotspot2part1.txt
 
 log "Generating cut counts..."
-bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS" "$FRAGMENTS_OUTFILE" "$TOTALCUTS_OUTFILE" "$CHROM_SIZES" "$MAPPABLE_REGIONS"
+bash "$CUTCOUNT_EXE" "$BAM" "$CUTCOUNTS" "$FRAGMENTS_OUTFILE" "$TOTALCUTS_OUTFILE" "$CHROM_SIZES" "$TMPDIR" "$MAPPABLE_REGIONS"
 
 log "Tallying filtered cut counts in small windows and running part 1 of hotspot2..."
 bedmap --faster --range "$SITE_NEIGHBORHOOD_HALF_WINDOW_SIZE" --delim "\t" --prec 0 --echo --sum "$CENTER_SITES" "$CUTCOUNTS" \

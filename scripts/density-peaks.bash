@@ -323,4 +323,6 @@ log "Finalizing density..."
 starchcat $densouts \
   >"$density"
 
+rm -r -f "$tmpdir"
+
 exit 0

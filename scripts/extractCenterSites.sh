@@ -17,6 +17,7 @@ Options:
 
     -M MAPPABLE_REGIONS   BED or starch file of mappable regions, with "blacklist" subtracted when appropriate.
     -n NEIGHBORHOOD_SIZE  Local neighborhood radius in bp (default = 100, yielding a 201-bp window)
+    -t TMPDIR             Temporary directory; default to mktemp -d
 __EOF__
   exit 2
 }
@@ -27,13 +28,14 @@ MAPPABLE_REGIONS=
 OUTFILE=
 HALF_WINDOW_SIZE=100
 
-while getopts 'hc:M:o:n:' opt; do
+while getopts 'hc:M:o:n:t:' opt; do
   case "$opt" in
     h) usage ;;
     c) CHROM_SIZES=$OPTARG ;;
     M) MAPPABLE_REGIONS=$OPTARG ;;
     o) OUTFILE=$OPTARG ;;
     n) HALF_WINDOW_SIZE=$OPTARG ;;
+    t) TMPDIR=$OPTARG ;;
   esac
 done
 
@@ -70,7 +72,9 @@ fi
 
 MIN_NUM_SITES=`echo $HALF_WINDOW_SIZE | awk '{print $1 + 1}'`
 
-TMPDIR=$(mktemp -d)
+if [[ -z "$TMPDIR" ]]; then
+    TMPDIR=$(mktemp -d)
+fi
 PID=$$
 
 # Get all sites (1bp each) that can be viable centers of windows in which we'll want to tally cut counts.
