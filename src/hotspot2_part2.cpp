@@ -41,8 +41,9 @@ bool NegLog10Pscaled_GT(const SiteRangeData& a, const SiteRangeData& b) {
 }
 
 bool OutputOrder_LT(const SiteRangeData& a, const SiteRangeData& b) {
-    if (a.chromID == b.chromID)
+    if (a.chromID == b.chromID) {
         return a.begPos < b.begPos;
+    }
     return a.chromID < b.chromID;
 }
 
@@ -67,23 +68,26 @@ MissingField:
         }
         negLog10PscaledAndNumOccs.first = atoi(p);
         fieldnum++;
-        if (!(p = strtok(NULL, "\t")))
+        if (!(p = strtok(NULL, "\t"))) {
             goto MissingField;
+        }
         negLog10PscaledAndNumOccs.second = atoi(p);
 
         it = tempMap.lower_bound(negLog10PscaledAndNumOccs.first); // >=
         if (tempMap.end() == it) {
             // no lower bound found in the map; every map element is smaller, or the map is empty
-            if (!tempMap.empty())
+            if (!tempMap.empty()) {
                 tempMap.insert(--it, negLog10PscaledAndNumOccs);
-            else
+            } else {
                 tempMap.insert(negLog10PscaledAndNumOccs);
+            }
         } else {
-            if (it->first == negLog10PscaledAndNumOccs.first)
+            if (it->first == negLog10PscaledAndNumOccs.first) {
                 it->second += negLog10PscaledAndNumOccs.second;
-            else {
-                if (it != tempMap.begin())
+            } else {
+                if (it != tempMap.begin()) {
                     it--;
+                }
                 tempMap.insert(it, negLog10PscaledAndNumOccs);
             }
         }
@@ -105,8 +109,9 @@ MissingField:
         p_to_q[i].first = it->first;
         numThisExtremeOrMoreExtreme += static_cast<long double>(it->second);
         FDR = static_cast<long double>(std::pow(10., -it->first/CHANGE_OF_SCALE)) * N / numThisExtremeOrMoreExtreme;
-        if (FDR < prevFDR)
+        if (FDR < prevFDR) {
             FDR = prevFDR;
+        }
         if (FDR > 0.999) {
             p_to_q[i++].second = 1.;
             p_to_q.resize(i);
@@ -154,8 +159,9 @@ MissingField:
             return false;
         }
         fieldnum++;
-        if (!(p = strtok(NULL, "\t")) || !*p)
+        if (!(p = strtok(NULL, "\t")) || !*p) {
             goto MissingField;
+        }
         mapOut[ID] = new std::string(p);
     }
 
@@ -181,10 +187,11 @@ bool parseAndProcessInput(const std::map<int, std::string*>& intToChromNameMap,
                       << std::endl << std::endl;
             return false;
         }
-        if (1 == linenum)
+        if (1 == linenum) {
             it = vec.begin();
-        else
+        } else {
             it++;
+        }
         fieldnum = 1;
         if (!(p = strtok(buf, "\t")) || !*p) {
 MissingField:
@@ -195,16 +202,19 @@ MissingField:
         }
         it->chromID = atoi(p);
         fieldnum++;
-        if (!(p = strtok(NULL, "\t")) || !*p)
+        if (!(p = strtok(NULL, "\t")) || !*p) {
             goto MissingField;
+        }
         it->begPos = atoi(p);
         fieldnum++;
-        if (!(p = strtok(NULL, "\t")) || !*p)
+        if (!(p = strtok(NULL, "\t")) || !*p) {
             goto MissingField;
+        }
         it->width = atoi(p);
         fieldnum++;
-        if (!(p = strtok(NULL, "\t")) || !*p)
+        if (!(p = strtok(NULL, "\t")) || !*p) {
             goto MissingField;
+        }
         it->negLog10P_scaled = atoi(p);
     }
 
@@ -256,8 +266,9 @@ MissingField:
                       << it->begPos << '\t'
                       << it->begPos + it->width << "\ti\t"
                       << it->FDR;
-            if (writePvals)
+            if (writePvals) {
                 std::cout << '\t' << std::pow(10., -it->negLog10P_scaled/CHANGE_OF_SCALE);
+            }
             std::cout << '\n';
         }
     }
@@ -399,15 +410,18 @@ int main(int argc, char* argv[]) {
     }
 
     std::map<int, std::string*> IntToChromNameMap;
-    if (!buildIntToChromNameMap(ifsChromNames, IntToChromNameMap))
+    if (!buildIntToChromNameMap(ifsChromNames, IntToChromNameMap)) {
         return -1;
+    }
 
     std::vector<std::pair<int, long double> > PvalToFDRmapping;
-    if (!buildFDRmapping(ifsPvals, PvalToFDRmapping))
+    if (!buildFDRmapping(ifsPvals, PvalToFDRmapping)) {
         return -1;
+    }
 
-    if (!parseAndProcessInput(IntToChromNameMap, PvalToFDRmapping, numEntries, fdr_threshold, write_pvals ? true : false))
+    if (!parseAndProcessInput(IntToChromNameMap, PvalToFDRmapping, numEntries, fdr_threshold, write_pvals ? true : false)) {
         return -1;
+    }
 
     return 0;
 }
