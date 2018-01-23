@@ -36,13 +36,11 @@ struct SiteRangeData {
   long double FDR;
 };
 
-bool NegLog10Pscaled_GT(const SiteRangeData& a, const SiteRangeData& b);
 bool NegLog10Pscaled_GT(const SiteRangeData& a, const SiteRangeData& b)
 {
   return a.negLog10P_scaled > b.negLog10P_scaled;
 }
 
-bool OutputOrder_LT(const SiteRangeData& a, const SiteRangeData& b);
 bool OutputOrder_LT(const SiteRangeData& a, const SiteRangeData& b)
 {
   if (a.chromID == b.chromID)
@@ -50,7 +48,6 @@ bool OutputOrder_LT(const SiteRangeData& a, const SiteRangeData& b)
   return a.chromID < b.chromID;
 }
 
-bool buildFDRmapping(std::ifstream& ifs, std::vector<std::pair<int, long double> >& p_to_q);
 bool buildFDRmapping(std::ifstream& ifs, std::vector<std::pair<int, long double> >& p_to_q)
 {
   const int BUFSIZE(100);
@@ -143,7 +140,6 @@ bool buildFDRmapping(std::ifstream& ifs, std::vector<std::pair<int, long double>
   return true;
 }
 
-bool buildIntToChromNameMap(std::ifstream& infile, std::map<int, std::string*>& mapOut);
 bool buildIntToChromNameMap(std::ifstream& infile, std::map<int, std::string*>& mapOut)
 {
   const int BUFSIZE(100);
@@ -183,9 +179,8 @@ bool buildIntToChromNameMap(std::ifstream& infile, std::map<int, std::string*>& 
   return true;
 }
 
-bool parseAndProcessInput(const std::map<int, std::string*>& intToChromNameMap, const std::vector<std::pair<int, long double> >& PvalToFDRmapping,
-			  const int& N, const long double& FDRthreshold, const bool& writePvals);
-bool parseAndProcessInput(const std::map<int, std::string*>& intToChromNameMap, const std::vector<std::pair<int, long double> >& PvalToFDRmapping,
+bool parseAndProcessInput(const std::map<int, std::string*>& intToChromNameMap,
+			  const std::vector<std::pair<int, long double> >& PvalToFDRmapping,
 			  const int& N, const long double& FDRthreshold, const bool& writePvals)
 {
   const int BUFSIZE(1000);

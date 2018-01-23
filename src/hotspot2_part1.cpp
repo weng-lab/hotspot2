@@ -69,7 +69,6 @@ struct SiteRange {
 #endif
 };
 
-long double nextProbNegativeBinomial(const int& k, const long double& prevVal, const std::vector<long double>& params);
 long double nextProbNegativeBinomial(const int& k, const long double& prevVal, const std::vector<long double>& params)
 {
   if (params.size() < 2)
@@ -98,7 +97,6 @@ long double nextProbNegativeBinomial(const int& k, const long double& prevVal, c
   return prevVal * m * (r + kk - 1.) / ((r + m) * kk);
 }
 
-long double nextProbBinomial(const int& k, const long double& prevVal, const std::vector<long double>& params);
 long double nextProbBinomial(const int& k, const long double& prevVal, const std::vector<long double>& params)
 {
   if (params.size() < 3)
@@ -130,7 +128,6 @@ long double nextProbBinomial(const int& k, const long double& prevVal, const std
   return prevVal * (m - v) * (nn + 1. - kk) / (v * kk);
 }
 
-long double nextProbPoisson(const int& k, const long double& prevVal, const std::vector<long double>& params);
 long double nextProbPoisson(const int& k, const long double& prevVal, const std::vector<long double>& params)
 {
   if (params.empty())
@@ -1250,7 +1247,9 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
   // and both were sampled,
   // the distribution remains unchanged, and no calculations need to be made,
   // unless the necessary calculations were postponed during a previous execution of this method.
-  if (m_sitesInRegion_leftHalf.front().pos == m_posL && m_sitesInRegion_leftHalf.front().count == s.count && m_sitesInRegion_leftHalf.front().sampled && m_sitesInRegion_rightHalf.back().sampled)
+  if (m_sitesInRegion_leftHalf.front().pos == m_posL &&
+      m_sitesInRegion_leftHalf.front().count == s.count &&
+      m_sitesInRegion_leftHalf.front().sampled && m_sitesInRegion_rightHalf.back().sampled)
     {
       m_sitesInRegion_leftHalf.pop_front();
       // When we have an observation for the central position,
@@ -1267,7 +1266,9 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
       // Assign P-value for m_posC if necessary.
       if (m_sitesInRegion_rightHalf.front().pos == m_posC)
         {
-          if (m_runningSum_countSquared_duringPrevComputation != m_runningSum_countSquared || m_runningSum_count_duringPrevComputation != m_runningSum_count || m_numPtsInNullRegion_duringPrevComputation != m_numPtsInNullRegion)
+          if (m_runningSum_countSquared_duringPrevComputation != m_runningSum_countSquared ||
+	      m_runningSum_count_duringPrevComputation != m_runningSum_count ||
+	      m_numPtsInNullRegion_duringPrevComputation != m_numPtsInNullRegion)
             needToComputePMFs = true; // Should only be true if we previously pop_fronted k < m_kcutoff without push_backing
           // (due to missing data at the right edge), and additionally,
           // there was missing data at m_posC, so no pmfs were computed.
@@ -1627,7 +1628,9 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
   // Compute/assign P-value for m_posC if necessary.
   if (m_sitesInRegion_rightHalf.front().pos == m_posC)
     {
-      if (m_runningSum_countSquared_duringPrevComputation != m_runningSum_countSquared || m_runningSum_count_duringPrevComputation != m_runningSum_count || m_numPtsInNullRegion_duringPrevComputation != m_numPtsInNullRegion)
+      if (m_runningSum_countSquared_duringPrevComputation != m_runningSum_countSquared ||
+	  m_runningSum_count_duringPrevComputation != m_runningSum_count ||
+	  m_numPtsInNullRegion_duringPrevComputation != m_numPtsInNullRegion)
         needToComputePMFs = true; // mean and/or variance have changed; won't change if added and removed k > m_kcutoff
       if (needToComputePMFs)
         {
@@ -1671,8 +1674,6 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
     }
 }
 
-bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength,
-			  const bool& writePvals, std::ofstream& ofsPvalData);
 bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength,
 			  const bool& writePvals, std::ofstream& ofsPvalData)
 {
