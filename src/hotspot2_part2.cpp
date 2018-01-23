@@ -26,8 +26,6 @@
 #include <utility> // for pair
 #include <vector>
 
-using namespace std;
-
 const long double CHANGE_OF_SCALE(1000.);
 
 struct SiteRangeData {
@@ -52,15 +50,15 @@ bool OutputOrder_LT(const SiteRangeData& a, const SiteRangeData& b)
   return a.chromID < b.chromID;
 }
 
-bool buildFDRmapping(ifstream& ifs, vector<pair<int, long double> >& p_to_q);
-bool buildFDRmapping(ifstream& ifs, vector<pair<int, long double> >& p_to_q)
+bool buildFDRmapping(std::ifstream& ifs, std::vector<std::pair<int, long double> >& p_to_q);
+bool buildFDRmapping(std::ifstream& ifs, std::vector<std::pair<int, long double> >& p_to_q)
 {
   const int BUFSIZE(100);
   char buf[BUFSIZE], *p;
   long numPvalues(0);
-  map<int, int> tempMap;
-  map<int, int>::iterator it;
-  pair<int, int> negLog10PscaledAndNumOccs;
+  std::map<int, int> tempMap;
+  std::map<int, int>::iterator it;
+  std::pair<int, int> negLog10PscaledAndNumOccs;
   int linenum(0), fieldnum;
 
   while (ifs.getline(buf,BUFSIZE))
@@ -70,9 +68,9 @@ bool buildFDRmapping(ifstream& ifs, vector<pair<int, long double> >& p_to_q)
       if (!(p = strtok(buf, "\t")) || !*p)
 	{
 	MissingField:
-	  cerr << "Error:  Failed to find field " << fieldnum
+	  std::cerr << "Error:  Failed to find field " << fieldnum
 	       << " on line " << linenum << " of the file of P-values."
-	       << endl << endl;
+	       << std::endl << std::endl;
 	  return false;
 	}
       negLog10PscaledAndNumOccs.first = atoi(p);
@@ -106,7 +104,7 @@ bool buildFDRmapping(ifstream& ifs, vector<pair<int, long double> >& p_to_q)
 
   if (0 == numPvalues)
     {
-      cerr << "Error:  Received an empty file of P-values." << endl << endl;
+      std::cerr << "Error:  Received an empty file of P-values." << std::endl << std::endl;
       return false;
     }
 
@@ -145,13 +143,13 @@ bool buildFDRmapping(ifstream& ifs, vector<pair<int, long double> >& p_to_q)
   return true;
 }
 
-bool buildIntToChromNameMap(ifstream& infile, map<int, string*>& mapOut);
-bool buildIntToChromNameMap(ifstream& infile, map<int, string*>& mapOut)
+bool buildIntToChromNameMap(std::ifstream& infile, std::map<int, std::string*>& mapOut);
+bool buildIntToChromNameMap(std::ifstream& infile, std::map<int, std::string*>& mapOut)
 {
   const int BUFSIZE(100);
   char buf[BUFSIZE], *p;
   int ID;
-  map<int, string*>::const_iterator it;
+  std::map<int, std::string*>::const_iterator it;
   int linenum(0), fieldnum;
 
   while (infile.getline(buf, BUFSIZE))
@@ -161,51 +159,51 @@ bool buildIntToChromNameMap(ifstream& infile, map<int, string*>& mapOut)
       if (!(p = strtok(buf, "\t")) || !*p)
 	{
 	MissingField:
-	  cerr << "Error:  Failed to find field " << fieldnum
+	  std::cerr << "Error:  Failed to find field " << fieldnum
 	       << " on line " << linenum
 	       << " of the number-to-chromosomeName mapping file."
-	       << endl << endl;
+	       << std::endl << std::endl;
 	  return false;
 	}
       ID = atoi(p);
       it = mapOut.find(ID);
       if (it != mapOut.end())
 	{
-	  cerr << "Error:  Multiple entries found in the number-to-chromosomeName mapping file\n"
+	  std::cerr << "Error:  Multiple entries found in the number-to-chromosomeName mapping file\n"
 	       << "with value " << ID << " in the first column; each mapping must be unique."
-	       << endl << endl;
+	       << std::endl << std::endl;
 	  return false;
 	}
       fieldnum++;
       if (!(p = strtok(NULL, "\t")) || !*p)
 	goto MissingField;
-      mapOut[ID] = new string(p);
+      mapOut[ID] = new std::string(p);
     }
   
   return true;
 }
 
-bool parseAndProcessInput(const map<int, string*>& intToChromNameMap, const vector<pair<int, long double> >& PvalToFDRmapping,
+bool parseAndProcessInput(const std::map<int, std::string*>& intToChromNameMap, const std::vector<std::pair<int, long double> >& PvalToFDRmapping,
 			  const int& N, const long double& FDRthreshold, const bool& writePvals);
-bool parseAndProcessInput(const map<int, string*>& intToChromNameMap, const vector<pair<int, long double> >& PvalToFDRmapping,
+bool parseAndProcessInput(const std::map<int, std::string*>& intToChromNameMap, const std::vector<std::pair<int, long double> >& PvalToFDRmapping,
 			  const int& N, const long double& FDRthreshold, const bool& writePvals)
 {
   const int BUFSIZE(1000);
   char buf[BUFSIZE], *p;
-  vector<SiteRangeData> vec;
-  vector<SiteRangeData>::iterator it;
+  std::vector<SiteRangeData> vec;
+  std::vector<SiteRangeData>::iterator it;
   int linenum(0), fieldnum;
 
   vec.resize(N);
 
-  while (cin.getline(buf, BUFSIZE))
+  while (std::cin.getline(buf, BUFSIZE))
     {
       linenum++;
       if (linenum > N)
 	{
-	  cerr << "Error:  Expected to find exactly " << N
+	  std::cerr << "Error:  Expected to find exactly " << N
 	       << " lines of data in the file of location and P-value data, but at least one additional line was found."
-	       << endl << endl;
+	       << std::endl << std::endl;
 	  return false;
 	}
       if (1 == linenum)
@@ -216,9 +214,9 @@ bool parseAndProcessInput(const map<int, string*>& intToChromNameMap, const vect
       if (!(p = strtok(buf, "\t")) || !*p)
 	{
 	MissingField:
-	  cerr << "Error:  Failed to find required field " << fieldnum
+	  std::cerr << "Error:  Failed to find required field " << fieldnum
 	       << " on line " << linenum << " of the file of location and P-value data."
-	       << endl << endl;
+	       << std::endl << std::endl;
 	  return false;
 	}
       it->chromID = atoi(p);
@@ -238,10 +236,10 @@ bool parseAndProcessInput(const map<int, string*>& intToChromNameMap, const vect
 
   if (linenum < N)
     {
-      cerr << "Error:  Expected to find exactly " << N
+      std::cerr << "Error:  Expected to find exactly " << N
 	   << " lines of data in the file of location and P-value data,"
 	   << " but only " << linenum << " lines were found."
-	   << endl << endl;
+	   << std::endl << std::endl;
       return false;
     }
 
@@ -249,17 +247,17 @@ bool parseAndProcessInput(const map<int, string*>& intToChromNameMap, const vect
 
   if (vec[0].negLog10P_scaled != PvalToFDRmapping[0].first)
     {
-      cerr << "Coding error:  Line " << __LINE__
+      std::cerr << "Coding error:  Line " << __LINE__
 	   << ", expected scaled -log10(P) values in the initial elements\n"
 	   << "of the genomic data and P-to-FDR vectors to be equal, but they are not\n"
 	   << '(' << vec[0].negLog10P_scaled << " for the former and "
 	   << PvalToFDRmapping[0].first << " for the latter.)"
-	   << endl << endl;
+	   << std::endl << std::endl;
       return false;
     }
 
   it = vec.begin();
-  for (vector<pair<int, long double> >::const_iterator itPtoQ = PvalToFDRmapping.begin();
+  for (std::vector<std::pair<int, long double> >::const_iterator itPtoQ = PvalToFDRmapping.begin();
        itPtoQ != PvalToFDRmapping.end(); itPtoQ++)
     {
       while (it != vec.end() && it->negLog10P_scaled == itPtoQ->first)
@@ -276,7 +274,7 @@ bool parseAndProcessInput(const map<int, string*>& intToChromNameMap, const vect
   
   sort(vec.begin(), vec.end(), OutputOrder_LT);  
   int prevChromID(-1);
-  string *prevChromString(NULL);
+  std::string *prevChromString(NULL);
   
   for (it = vec.begin(); it != vec.end(); it++)
     {
@@ -288,13 +286,13 @@ bool parseAndProcessInput(const map<int, string*>& intToChromNameMap, const vect
 	}
       if (it->FDR <= FDRthreshold)
 	{
-	  cout << *prevChromString << '\t'
+	  std::cout << *prevChromString << '\t'
 	       << it->begPos << '\t'
 	       << it->begPos + it->width << "\ti\t"
 	       << it->FDR;
 	  if (writePvals)
-	    cout << '\t' << pow(10., -it->negLog10P_scaled/CHANGE_OF_SCALE);
-	  cout << '\n';
+	    std::cout << '\t' << pow(10., -it->negLog10P_scaled/CHANGE_OF_SCALE);
+	  std::cout << '\n';
 	}
     }
       
@@ -309,10 +307,10 @@ int main(int argc, char* argv[])
   int write_pvals = 0;
   int print_help = 0;
   int print_version = 0;
-  string infilename = "";
-  string infilePvals = "";
-  string infileChromNames = "";
-  string outfilename = "";
+  std::string infilename = "";
+  std::string infilePvals = "";
+  std::string infileChromNames = "";
+  std::string outfilename = "";
   int numEntries = 0;
 
   // Long-opt definitions
@@ -331,7 +329,7 @@ int main(int argc, char* argv[])
 
   // Parse options
   char c;
-  stringstream ss; // Used for parsing long doubles (allows scientific notation)
+  std::stringstream ss; // Used for parsing long doubles (allows scientific notation)
   while ((c = getopt_long(argc, argv, "f:n:c:p:i:o:hvV", long_options, NULL)) != -1)
     {
       switch (c)
@@ -373,22 +371,22 @@ int main(int argc, char* argv[])
 
   if (!print_help && !print_version && infileChromNames.empty())
     {
-      cerr << "Error:  Required file containing mapping from integers to chromosome names was not supplied."
-	   << endl << endl;
+      std::cerr << "Error:  Required file containing mapping from integers to chromosome names was not supplied."
+	   << std::endl << std::endl;
       print_help = 1;
     }
   
   if (!print_help && !print_version && infilePvals.empty())
     {
-      cerr << "Error:  Required file containing scaled -log10(P) values and their occurrence counts was not supplied."
-	   << endl << endl;
+      std::cerr << "Error:  Required file containing scaled -log10(P) values and their occurrence counts was not supplied."
+	   << std::endl << std::endl;
       print_help = 1;
     }
  
   // Print usage and exit if necessary
   if (print_help)
     {
-      cerr << "Usage:  " << argv[0] << " [options] < in.PvalueData.txt > out.FDR.bed\n"
+      std::cerr << "Usage:  " << argv[0] << " [options] < in.PvalueData.txt > out.FDR.bed\n"
            << "\n"
            << "Options: \n"
            << "  -n, --num_entries=INT          The number of lines of input (required for optimization)\n"
@@ -404,25 +402,25 @@ int main(int argc, char* argv[])
            << " output (sent to stdout) will be a .bed5 file with FDR in field 5\n"
            << "\tor, if --write_pvals is specified, a .bed6 file with P-values appended in field 6\n"
            << " input (via \"-i FILE\" or piped in from stdin) consists of many rows of values in 4 columns.\n"
-           << endl
-           << endl;
+           << std::endl
+           << std::endl;
       return -1;
     }
 
   if (print_version)
     {
-      cout << argv[0] << " version " << hotspot2_VERSION_MAJOR
-           << '.' << hotspot2_VERSION_MINOR << endl;
+      std::cout << argv[0] << " version " << hotspot2_VERSION_MAJOR
+           << '.' << hotspot2_VERSION_MINOR << std::endl;
       return 0;
     }
 
-  ios_base::sync_with_stdio(false); // calling this static method in this way turns off checks, speeds up I/O
+  std::ios_base::sync_with_stdio(false); // calling this static method in this way turns off checks, speeds up I/O
 
   if (!infilename.empty() && infilename != "-")
     {
       if (freopen(infilename.c_str(), "r", stdin) == NULL)
         {
-          cerr << "Error: Couldn't open input file " << infilename << endl;
+          std::cerr << "Error: Couldn't open input file " << infilename << std::endl;
           return 1;
         }
     }
@@ -430,28 +428,28 @@ int main(int argc, char* argv[])
     {
       if (freopen(outfilename.c_str(), "w", stdout) == NULL)
         {
-          cerr << "Error: Couldn't open output file " << outfilename << " for writing" << endl;
+          std::cerr << "Error: Couldn't open output file " << outfilename << " for writing" << std::endl;
           return 1;
         }
     }
 
-  ifstream ifsChromNames(infileChromNames.c_str()), ifsPvals(infilePvals.c_str());
+  std::ifstream ifsChromNames(infileChromNames.c_str()), ifsPvals(infilePvals.c_str());
   if (!ifsChromNames)
     {
-      cerr << "Error:  Unable to open file \"" << infileChromNames << "\" for read." << endl;
+      std::cerr << "Error:  Unable to open file \"" << infileChromNames << "\" for read." << std::endl;
       return 1;
     }
   if (!ifsPvals)
     {
-      cerr << "Error:  Unable to open file \"" << infilePvals << "\" for read." << endl;
+      std::cerr << "Error:  Unable to open file \"" << infilePvals << "\" for read." << std::endl;
       return 1;
     }
 
-  map<int, string*> IntToChromNameMap;
+  std::map<int, std::string*> IntToChromNameMap;
   if (!buildIntToChromNameMap(ifsChromNames, IntToChromNameMap))
     return -1;
 
-  vector<pair<int, long double> > PvalToFDRmapping;
+  std::vector<std::pair<int, long double> > PvalToFDRmapping;
   if (!buildFDRmapping(ifsPvals, PvalToFDRmapping))
     return -1;
 

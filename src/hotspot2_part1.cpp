@@ -26,39 +26,37 @@
 #include <utility> // for pair
 #include <vector>
 
-using namespace std;
-
-map<string, string*> interned;
-map<string*, int> chromAsInt;
+std::map<std::string, std::string*> interned;
+std::map<std::string*, int> chromAsInt;
 const long double CHANGE_OF_SCALE(1000.);
 
-string* intern(string s)
+std::string* intern(std::string s)
 {
-  map<string, string*>::iterator it = interned.find(s);
+  std::map<std::string, std::string*>::iterator it = interned.find(s);
   if (it == interned.end())
     {
-      interned[s] = new string(s);
+      interned[s] = new std::string(s);
       chromAsInt[interned[s]] = static_cast<int>(interned.size());
       return interned[s];
     }
   return it->second;
 }
 
-int idxFromChrom(string* ptr)
+int idxFromChrom(std::string* ptr)
 {
-  map<string*, int>::const_iterator it = chromAsInt.find(ptr);
+  std::map<std::string*, int>::const_iterator it = chromAsInt.find(ptr);
   if (chromAsInt.end() == it)
     {
-      cerr << "Coding error:  Line " << __LINE__ << ", failed to find \""
-	   << *ptr << "\" in the lookup table." << endl << endl;
+      std::cerr << "Coding error:  Line " << __LINE__ << ", failed to find \""
+	   << *ptr << "\" in the lookup table." << std::endl << std::endl;
       exit(2);
     }
   return it->second;
 }
 
 struct SiteRange {
-  string* chrom;
-  string* ID;
+  std::string* chrom;
+  std::string* ID;
   long double pval;
   //  long double qval;
   long begPos;
@@ -71,50 +69,50 @@ struct SiteRange {
 #endif
 };
 
-long double nextProbNegativeBinomial(const int& k, const long double& prevVal, const vector<long double>& params);
-long double nextProbNegativeBinomial(const int& k, const long double& prevVal, const vector<long double>& params)
+long double nextProbNegativeBinomial(const int& k, const long double& prevVal, const std::vector<long double>& params);
+long double nextProbNegativeBinomial(const int& k, const long double& prevVal, const std::vector<long double>& params)
 {
   if (params.size() < 2)
     {
-      cerr << "Error:  nextProbNegativeBinomial() received an incorrect parameter vector; expected m, r."
-           << endl
-           << endl;
+      std::cerr << "Error:  nextProbNegativeBinomial() received an incorrect parameter vector; expected m, r."
+           << std::endl
+           << std::endl;
       exit(1);
     }
   if (0 == k)
     {
-      cerr << "Error:  nextProbNegativeBinomial() received k = 0, which is invalid (require k > 0)."
-           << endl
-           << endl;
+      std::cerr << "Error:  nextProbNegativeBinomial() received k = 0, which is invalid (require k > 0)."
+           << std::endl
+           << std::endl;
       exit(1);
     }
   const long double &m(params[0]), &r(params[1]), kk(static_cast<long double>(k));
   if (r + m == 0)
     {
-      cerr << "Error:  nextProbNegativeBinomial() received m = " << m
+      std::cerr << "Error:  nextProbNegativeBinomial() received m = " << m
            << " and r = " << r << ", which is invalid (require r+m > 0)."
-           << endl
-           << endl;
+           << std::endl
+           << std::endl;
       exit(1);
     }
   return prevVal * m * (r + kk - 1.) / ((r + m) * kk);
 }
 
-long double nextProbBinomial(const int& k, const long double& prevVal, const vector<long double>& params);
-long double nextProbBinomial(const int& k, const long double& prevVal, const vector<long double>& params)
+long double nextProbBinomial(const int& k, const long double& prevVal, const std::vector<long double>& params);
+long double nextProbBinomial(const int& k, const long double& prevVal, const std::vector<long double>& params)
 {
   if (params.size() < 3)
     {
-      cerr << "Error:  nextProbBinomial() received an incorrect parameter vector; expected m, v, n."
-           << endl
-           << endl;
+      std::cerr << "Error:  nextProbBinomial() received an incorrect parameter vector; expected m, v, n."
+           << std::endl
+           << std::endl;
       exit(1);
     }
   if (0 == k)
     {
-      cerr << "Error:  nextProbBinomial() received k = 0, which is invalid (require k > 0)."
-           << endl
-           << endl;
+      std::cerr << "Error:  nextProbBinomial() received k = 0, which is invalid (require k > 0)."
+           << std::endl
+           << std::endl;
       exit(1);
     }
   const long double &m(params[0]), &v(params[1]), &nn(params[2]), kk(static_cast<long double>(k));
@@ -122,29 +120,29 @@ long double nextProbBinomial(const int& k, const long double& prevVal, const vec
     return 0.;
   if (v < 1.0e-8)
     {
-      cerr << "Error:  nextProbBinomial() received v = 0, which is invalid (require variance > 0)."
-           << endl
-           << endl;
+      std::cerr << "Error:  nextProbBinomial() received v = 0, which is invalid (require variance > 0)."
+           << std::endl
+           << std::endl;
       exit(1);
     }
   return prevVal * (m - v) * (nn + 1. - kk) / (v * kk);
 }
 
-long double nextProbPoisson(const int& k, const long double& prevVal, const vector<long double>& params);
-long double nextProbPoisson(const int& k, const long double& prevVal, const vector<long double>& params)
+long double nextProbPoisson(const int& k, const long double& prevVal, const std::vector<long double>& params);
+long double nextProbPoisson(const int& k, const long double& prevVal, const std::vector<long double>& params)
 {
   if (params.empty())
     {
-      cerr << "Error:  nextProbPoisson() received an incorrect parameter vector; expected m."
-           << endl
-           << endl;
+      std::cerr << "Error:  nextProbPoisson() received an incorrect parameter vector; expected m."
+           << std::endl
+           << std::endl;
       exit(1);
     }
   if (0 == k)
     {
-      cerr << "Error:  nextProbPoisson() received k = 0, which is invalid (require k > 0)."
-           << endl
-           << endl;
+      std::cerr << "Error:  nextProbPoisson() received k = 0, which is invalid (require k > 0)."
+           << std::endl
+           << std::endl;
       exit(1);
     }
   const long double &m(params[0]), kk(static_cast<long double>(k));
@@ -153,7 +151,7 @@ long double nextProbPoisson(const int& k, const long double& prevVal, const vect
 
 class SiteManager {
 public:
-  SiteManager(ofstream& ofsJustPvals) : m_ofsJustNegLog10PscaledAndNumOccs(ofsJustPvals) {};
+  SiteManager(std::ofstream& ofsJustPvals) : m_ofsJustNegLog10PscaledAndNumOccs(ofsJustPvals) {};
   void addSite(const SiteRange& s);
   void processPvalue(const long double& pval
 #ifdef DEBUG
@@ -165,9 +163,9 @@ public:
 private:
   SiteManager(); // require the above constructor to be used
   SiteManager(const SiteManager&); // deny use of the copy constructor
-  //  void initialize(ofstream& ofsJustPvals);
-  deque<SiteRange> m_sites;
-  ofstream& m_ofsJustNegLog10PscaledAndNumOccs;
+  //  void initialize(std::ofstream& ofsJustPvals);
+  std::deque<SiteRange> m_sites;
+  std::ofstream& m_ofsJustNegLog10PscaledAndNumOccs;
 };
 
 void SiteManager::addSite(const SiteRange& s)
@@ -179,14 +177,14 @@ inline void SiteManager::writeLastUnreportedSite()
 {
   if (!m_sites.empty())
     {
-      cout << idxFromChrom(m_sites.front().chrom) << '\t'
+      std::cout << idxFromChrom(m_sites.front().chrom) << '\t'
 	   << m_sites.front().begPos << '\t'
 	   << m_sites.front().endPos - m_sites.front().begPos << '\t'
 	   << m_sites.front().negLog10P_scaled;
 #ifdef DEBUG
-      cout << m_sites.front().sampled;
+      std::cout << m_sites.front().sampled;
 #endif
-      cout << '\n';
+      std::cout << '\n';
       m_ofsJustNegLog10PscaledAndNumOccs << m_sites.front().negLog10P_scaled << '\t'
 					 << m_sites.front().endPos - m_sites.front().begPos << '\n';
     }
@@ -204,13 +202,13 @@ void SiteManager::processPvalue(const long double& pval
     negLog10P_scaled = 0;
   else
     negLog10P_scaled = static_cast<int>(floor(-log10(pval) * CHANGE_OF_SCALE + 0.5));
-  deque<SiteRange>::iterator itCurSiteNeedingPval(m_sites.begin());
+  std::deque<SiteRange>::iterator itCurSiteNeedingPval(m_sites.begin());
   while (itCurSiteNeedingPval != m_sites.end() && itCurSiteNeedingPval->hasPval)
     itCurSiteNeedingPval++;
   if (m_sites.end() == itCurSiteNeedingPval)
     {
-      cerr << "Error:  line " << __LINE__ << ", m_sites is empty or already filled with P-values"
-	   << endl << endl;
+      std::cerr << "Error:  line " << __LINE__ << ", m_sites is empty or already filled with P-values"
+	   << std::endl << std::endl;
       exit(2);
     }
 
@@ -223,7 +221,7 @@ void SiteManager::processPvalue(const long double& pval
 
   if (itCurSiteNeedingPval != m_sites.begin())
     {
-      deque<SiteRange>::iterator it_prev = itCurSiteNeedingPval;
+      std::deque<SiteRange>::iterator it_prev = itCurSiteNeedingPval;
       it_prev--;
       if (it_prev->chrom == itCurSiteNeedingPval->chrom && it_prev->endPos + 1 == itCurSiteNeedingPval->endPos &&
 #ifdef DEBUG
@@ -254,7 +252,7 @@ struct StatsForCount {
 class BackgroundRegionManager {
 public:
   BackgroundRegionManager(const int& samplingInterval, const int& MAlength);
-  void setBounds(const string* pChrom, const int posL, const int posR);
+  void setBounds(const std::string* pChrom, const int posL, const int posR);
   const int& getRightEdge(void) const { return m_posR; };
   const bool& isSliding(void) const { return m_sliding; };
   void add(const SiteRange& s);
@@ -279,16 +277,16 @@ private:
 
   int m_MAlength;
   long double m_thresholdRatio;
-  vector<StatsForCount> m_distn; // distribution of observed counts
-  deque<SiteData> m_sitesInRegion_leftHalf; // endPos values of the sites in the region and whether P has been assigned
-  deque<SiteData> m_sitesInRegion_rightHalf; // endPos values of the sites in the region and whether P has been assigned
+  std::vector<StatsForCount> m_distn; // distribution of observed counts
+  std::deque<SiteData> m_sitesInRegion_leftHalf; // endPos values of the sites in the region and whether P has been assigned
+  std::deque<SiteData> m_sitesInRegion_rightHalf; // endPos values of the sites in the region and whether P has been assigned
   int m_modeXval;
   int m_modeYval;
   int m_kcutoff;
   int m_kTrendReversal;
   bool m_sliding;
   bool m_needToUpdate_kcutoff;
-  set<int> m_kvalsWithMinMAxN;
+  std::set<int> m_kvalsWithMinMAxN;
   int m_minMAxN;
   int m_prev_k;
 
@@ -296,9 +294,9 @@ private:
   int m_nextPosToSample;
   int m_sampledDataDistnSize;
 
-  long double (*m_pmf)(const int&, const long double&, const vector<long double>&); // Make these member variables, not local variables,
-  vector<long double> m_pmfParams; // so they can be accessed outside computeStats() for debugging.
-  const string* m_pCurChrom;
+  long double (*m_pmf)(const int&, const long double&, const std::vector<long double>&); // Make these member variables, not local variables,
+  std::vector<long double> m_pmfParams; // so they can be accessed outside computeStats() for debugging.
+  const std::string* m_pCurChrom;
 };
 
 BackgroundRegionManager::BackgroundRegionManager(const int& samplingInterval, const int& MAlength)
@@ -322,14 +320,14 @@ BackgroundRegionManager::BackgroundRegionManager(const int& samplingInterval, co
   m_pCurChrom = NULL;
 }
 
-void BackgroundRegionManager::setBounds(const string* pChrom, const int posL, const int posR)
+void BackgroundRegionManager::setBounds(const std::string* pChrom, const int posL, const int posR)
 {
   if (posR <= posL)
     {
-      cerr << "Error:  BackgroundRegionManager::setBounds() received posL = "
+      std::cerr << "Error:  BackgroundRegionManager::setBounds() received posL = "
            << posL << " and posR = " << posR << "; must have posL <= posR."
-           << endl
-           << endl;
+           << std::endl
+           << std::endl;
       exit(1);
     }
   m_pCurChrom = pChrom; // used solely for warning and error messages and debugging
@@ -343,10 +341,10 @@ void BackgroundRegionManager::add(const SiteRange& s)
 {
   if (s.endPos > m_posR)
     {
-      cerr << "Coding error:  BRM::add(), region " << *m_pCurChrom << ':' << m_posL << '-' << m_posR
+      std::cerr << "Coding error:  BRM::add(), region " << *m_pCurChrom << ':' << m_posL << '-' << m_posR
            << " received out-of-bounds position " << s.endPos
-           << " (line " << __LINE__ << " of the code)." << endl
-           << endl;
+           << " (line " << __LINE__ << " of the code)." << std::endl
+           << std::endl;
       exit(1);
     }
   SiteData sd;
@@ -490,7 +488,7 @@ void BackgroundRegionManager::findCutoff()
 
   int sum(0), idxL(m_modeXval + 1), idxR(m_modeXval + 1 + m_MAlength - 1); // these idxL and idxR values will be ignored/replaced if !m_sliding
   int idxC = m_modeXval + 1 + m_MAlength / 2; // integer division; see commendt directly above re: idxL and idxR
-  pair<int, int> xyCurMAxN;
+  std::pair<int, int> xyCurMAxN;
   bool useGlobMin(false);
 
   if (!m_sliding)
@@ -600,7 +598,7 @@ void BackgroundRegionManager::findCutoff()
     }
   // Otherwise, return the "global minimum so far" as the cutoff.
   // If there are ties (multiple k values with the same MAxN values), return the highest of these k values.
-  set<int>::const_iterator it = m_kvalsWithMinMAxN.end();
+  std::set<int>::const_iterator it = m_kvalsWithMinMAxN.end();
   int k = *(--it);
   m_kcutoff = k;
 
@@ -654,12 +652,12 @@ void BackgroundRegionManager::computeStats(const int& this_k)
       m_pmf = &nextProbPoisson;
       if (!warningAlreadyIssued)
         {
-          cerr << "Warning:  In region " << *m_pCurChrom << ':' << m_posL << '-' << m_posR
+          std::cerr << "Warning:  In region " << *m_pCurChrom << ':' << m_posL << '-' << m_posR
                << ", all counts used for statistics were 0, or all were 0 except one was 1.\n"
                << "This generally should not happen.  If this region is unmappable or problematic for other reasons,\n"
                << "it would almost certainly be best to filter it out of the input.\n"
                << "There may be other such regions in the input; this warning will only be issued once during this run."
-               << endl;
+               << std::endl;
           warningAlreadyIssued = true;
         }
     }
@@ -800,7 +798,7 @@ long double BackgroundRegionManager::getPvalue(const unsigned int& k)
 
   if (NULL == m_pmf || m_pmfParams.empty())
     {
-      cerr << "Coding error:  BRM::getPvalue(" << k << ") was called when m_pmf == NULL and/or m_pmfParams.empty() == true." << endl;
+      std::cerr << "Coding error:  BRM::getPvalue(" << k << ") was called when m_pmf == NULL and/or m_pmfParams.empty() == true." << std::endl;
       exit(1);
     }
 
@@ -935,10 +933,10 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
 {
   if (m_posR > s.endPos)
     {
-      cerr << "Coding error:  line " << __LINE__ << ", slideAndCompute window = " << *m_pCurChrom << ':'
+      std::cerr << "Coding error:  line " << __LINE__ << ", slideAndCompute window = " << *m_pCurChrom << ':'
            << m_posL << '-' << m_posR << '\n'
-           << "erroneously received incoming position = " << s.endPos << "." << endl
-           << endl;
+           << "erroneously received incoming position = " << s.endPos << "." << std::endl
+           << std::endl;
       exit(1);
     }
 
@@ -964,7 +962,8 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
       // P-values have been computed for all counts observed in this region.
       // Assign these P-values to the counts observed in the left half of this region
       // (i.e., assign to all points to the left of the central bp of this region).
-      for (deque<SiteData>::iterator it = m_sitesInRegion_leftHalf.begin();
+      for (std::deque
+	     <SiteData>::iterator it = m_sitesInRegion_leftHalf.begin();
            it != m_sitesInRegion_leftHalf.end();
            it++)
         {
@@ -1023,13 +1022,13 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
 
   if (m_needToUpdate_kcutoff)
     {
-      cerr << "Coding error:  slideAndCompute(), m_sliding == true, line "
+      std::cerr << "Coding error:  slideAndCompute(), m_sliding == true, line "
            << __LINE__ << ", expected m_needToUpdate_kcutoff = false, but it's true.\n"
            << "Region = ";
-      cerr << *m_pCurChrom << ':'
+      std::cerr << *m_pCurChrom << ':'
            << "[" << m_posL << ',' << m_posC << ',' << m_posR
            << "], incoming pos = " << s.endPos << ", k_c = " << m_kcutoff
-           << endl;
+           << std::endl;
       exit(1);
     }
 
@@ -1055,8 +1054,8 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
                 }
               m_distn[k].numOccs--;
               // Update moving averages (technically, moving sums, not averages, because we're not dividing them by N).
-              idxMin = max(k - m_MAlength / 2, m_MAlength / 2);
-              idxMax = min(k + m_MAlength / 2, m_sampledDataDistnSize - 1 - m_MAlength / 2);
+              idxMin = std::max(k - m_MAlength / 2, m_MAlength / 2);
+              idxMax = std::min(k + m_MAlength / 2, m_sampledDataDistnSize - 1 - m_MAlength / 2);
               for (int i = idxMin; i <= idxMax; i++)
                 {
                   m_distn[i].MAxN -= 1;
@@ -1118,8 +1117,8 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
                           if (k + halfMAlength > m_modeXval + 1 && k - halfMAlength < m_kcutoff)
                             {
                               // Check whether the subtraction has created a new instance of 0 == m_minMAxN at some k < m_kcutoff.
-                              idxMin = max(k - halfMAlength, halfMAlength);
-                              idxMax = min(k + halfMAlength, m_sampledDataDistnSize - 1 - halfMAlength);
+                              idxMin = std::max(k - halfMAlength, halfMAlength);
+                              idxMax = std::min(k + halfMAlength, m_sampledDataDistnSize - 1 - halfMAlength);
                               for (int i = idxMax; i >= idxMin; i--)
                                 {
                                   if (0 == m_distn[i].MAxN)
@@ -1134,7 +1133,7 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
                         {
                           if (-1 == m_kTrendReversal)
                             {
-                              cerr << "Coding error:  m_kTrendReversal should NOT be -1 on line " << __LINE__ << "." << endl;
+                              std::cerr << "Coding error:  m_kTrendReversal should NOT be -1 on line " << __LINE__ << "." << std::endl;
                               exit(1);
                             }
                           if (k + halfMAlength > m_modeXval + 1 && k - halfMAlength <= m_kTrendReversal)
@@ -1232,13 +1231,13 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
 
   if (m_needToUpdate_kcutoff)
     {
-      cerr << "Coding error:  slideAndCompute(), m_sliding == true, line "
+      std::cerr << "Coding error:  slideAndCompute(), m_sliding == true, line "
            << __LINE__ << ", successfully slid through missing data, expected m_needToUpdate_kcutoff = false, but it's true.\n"
            << "Region = ";
-      cerr << *m_pCurChrom << ':'
+      std::cerr << *m_pCurChrom << ':'
            << "[" << m_posL << ',' << m_posC << ',' << m_posR
            << "], incoming pos = " << s.endPos << ", k_c = " << m_kcutoff
-           << endl;
+           << std::endl;
       exit(1);
     }
 
@@ -1362,8 +1361,8 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
         }
 
       // Update moving averages (technically, moving sums, not averages, because we're not dividing them by N).
-      idxMin = max(k_outgoing - m_MAlength / 2, m_MAlength / 2);
-      idxMax = min(k_outgoing + m_MAlength / 2, m_sampledDataDistnSize - 1 - m_MAlength / 2);
+      idxMin = std::max(k_outgoing - m_MAlength / 2, m_MAlength / 2);
+      idxMax = std::min(k_outgoing + m_MAlength / 2, m_sampledDataDistnSize - 1 - m_MAlength / 2);
       for (int i = idxMin; i <= idxMax; i++)
         {
           m_distn[i].MAxN -= 1;
@@ -1455,7 +1454,7 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
               // that now, m_distn contains enough bins to compute at least one MAxN, maybe even several
               // (e.g., m_distn had bins for k=0,1,2, and then k_incoming=6 suddenly slid into the region).
               // So we need to fill in the rightmost MAxN value and work leftwards from there.
-              int stopHere = max(startHere, m_MAlength / 2 - 1);
+              int stopHere = std::max(startHere, m_MAlength / 2 - 1);
               startHere = m_sampledDataDistnSize - 1 - m_MAlength / 2;
               int sum(0);
               int idxL(startHere - m_MAlength / 2), idxC(startHere), idxR(startHere + m_MAlength / 2);
@@ -1491,8 +1490,8 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
       // to reflect the addition of k_incoming.
       if (m_sampledDataDistnSize <= origDistnSize) // <=, not ==, because k_outgoing could have caused shrinkage of m_distn.
         {
-          idxMin = max(k_incoming - m_MAlength / 2, m_MAlength / 2);
-          idxMax = min(k_incoming + m_MAlength / 2, m_sampledDataDistnSize - 1 - m_MAlength / 2);
+          idxMin = std::max(k_incoming - m_MAlength / 2, m_MAlength / 2);
+          idxMax = std::min(k_incoming + m_MAlength / 2, m_sampledDataDistnSize - 1 - m_MAlength / 2);
           for (int i = idxMin; i <= idxMax; i++)
             {
               m_distn[i].MAxN += 1;
@@ -1548,8 +1547,8 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
                             {
                               // There's a tiny chance that the subtraction caused a bin left of m_kcutoff
                               // to get its MAxN value reduced to 0, thereby moving m_kcutoff leftward.
-                              idxMin = max(k_outgoing - halfMAlength, halfMAlength);
-                              idxMax = min(k_outgoing + halfMAlength, m_sampledDataDistnSize - 1 - halfMAlength);
+                              idxMin = std::max(k_outgoing - halfMAlength, halfMAlength);
+                              idxMax = std::min(k_outgoing + halfMAlength, m_sampledDataDistnSize - 1 - halfMAlength);
                               for (int i = idxMax; i >= idxMin; i--)
                                 {
                                   if (0 == m_distn[i].MAxN)
@@ -1573,22 +1572,22 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
                     {
                       if (-1 == m_kTrendReversal)
                         {
-                          cerr << "Coding error:  m_kTrendReversal should NOT be -1 on line " << __LINE__ << " of BRM::slideAndCompute()." << endl;
-                          cerr << "k_c = " << m_kcutoff << ", m_minMAxN = " << m_minMAxN << ", m_modeXval = "
+                          std::cerr << "Coding error:  m_kTrendReversal should NOT be -1 on line " << __LINE__ << " of BRM::slideAndCompute()." << std::endl;
+                          std::cerr << "k_c = " << m_kcutoff << ", m_minMAxN = " << m_minMAxN << ", m_modeXval = "
                                << m_modeXval << ", m_modeYval = " << m_modeYval
                                << ", k_out = " << k_outgoing << ", k_in = " << k_incoming
                                << ", region = ";
-                          cerr << *m_pCurChrom << ':'
-                               << "[" << m_posL << ',' << m_posC + 1 << ',' << m_posR << ']' << endl;
-                          cerr << "m_distn = {{0," << m_distn[0].numOccs << ',' << m_distn[0].MAxN;
+                          std::cerr << *m_pCurChrom << ':'
+                               << "[" << m_posL << ',' << m_posC + 1 << ',' << m_posR << ']' << std::endl;
+                          std::cerr << "m_distn = {{0," << m_distn[0].numOccs << ',' << m_distn[0].MAxN;
                           for (unsigned int q = 1; q < m_distn.size(); q++)
                             {
                               if (0 == (q + 1) % 5)
-                                cerr << "},\n{" << q << ',' << m_distn[q].numOccs << ',' << m_distn[q].MAxN;
+                                std::cerr << "},\n{" << q << ',' << m_distn[q].numOccs << ',' << m_distn[q].MAxN;
                               else
-                                cerr << "}, {" << q << ',' << m_distn[q].numOccs << ',' << m_distn[q].MAxN;
+                                std::cerr << "}, {" << q << ',' << m_distn[q].numOccs << ',' << m_distn[q].MAxN;
                             }
-                          cerr << "}}" << endl;
+                          std::cerr << "}}" << std::endl;
                           exit(1);
                         }
                       // Prior to k_incoming and, when present, k_outgoing,
@@ -1669,9 +1668,9 @@ void BackgroundRegionManager::slideAndCompute(const SiteRange& s, SiteManager& s
 }
 
 bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength,
-			  const bool& writePvals, ofstream& ofsPvalData);
+			  const bool& writePvals, std::ofstream& ofsPvalData);
 bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, const int& MAlength,
-			  const bool& writePvals, ofstream& ofsPvalData)
+			  const bool& writePvals, std::ofstream& ofsPvalData)
 {
   const int BUFSIZE(1000);
   char buf[BUFSIZE], *p;
@@ -1694,19 +1693,19 @@ bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, co
 
   long start, end;
 
-  while (cin.getline(buf, BUFSIZE))
+  while (std::cin.getline(buf, BUFSIZE))
     {
       linenum++;
       fieldnum = 1;
       p = strtok(buf, "\t");
-      curSite.chrom = intern(string(p));
+      curSite.chrom = intern(std::string(p));
       fieldnum++;
       if (!(p = strtok(NULL, "\t")))
         {
         MissingField:
-          cerr << "Error:  Missing required field " << fieldnum
-               << " on line " << linenum << "." << endl
-               << endl;
+          std::cerr << "Error:  Missing required field " << fieldnum
+               << " on line " << linenum << "." << std::endl
+               << std::endl;
           return false;
         }
       start = atol(p);
@@ -1717,7 +1716,7 @@ bool parseAndProcessInput(const int& windowSize, const int& samplingInterval, co
       fieldnum++;
       if (!(p = strtok(NULL, "\t")))
         goto MissingField;
-      //curSite.ID = intern(string(p));
+      //curSite.ID = intern(std::string(p));
       fieldnum++;
       if (!(p = strtok(NULL, "\t")))
         goto MissingField;
@@ -1768,10 +1767,10 @@ int main(int argc, char* argv[])
   int write_pvals = 0;
   int print_help = 0;
   int print_version = 0;
-  string infilename = "";
-  string outfilename = "";
-  string outfilenameChromNames = "";
-  string outfilenamePvals = "";
+  std::string infilename = "";
+  std::string outfilename = "";
+  std::string outfilenameChromNames = "";
+  std::string outfilenamePvals = "";
 
   // Long-opt definitions
   static struct option long_options[] = {
@@ -1790,7 +1789,7 @@ int main(int argc, char* argv[])
 
   // Parse options
   char c;
-  stringstream ss; // Used for parsing long doubles (allows scientific notation)
+  std::stringstream ss; // Used for parsing long doubles (allows scientific notation)
   while ((c = getopt_long(argc, argv, "b:f:m:n:p:s:i:o:c:hvV", long_options, NULL)) != -1)
     {
       switch (c)
@@ -1834,23 +1833,23 @@ int main(int argc, char* argv[])
 
   if (!print_help && !print_version && outfilenameChromNames.empty())
     {
-      cerr << "Error:  No filename supplied for (temporary) output file of integer-to-chromosomeName mapping."
-	   << endl
-	   << endl;
+      std::cerr << "Error:  No filename supplied for (temporary) output file of integer-to-chromosomeName mapping."
+	   << std::endl
+	   << std::endl;
       print_help = 1;
     }
   if (!print_help && !print_version && outfilenamePvals.empty())
     {
-      cerr << "Error:  No filename supplied for (temporary) output file of scaled -log10(P) values."
-	   << endl
-	   << endl;
+      std::cerr << "Error:  No filename supplied for (temporary) output file of scaled -log10(P) values."
+	   << std::endl
+	   << std::endl;
       print_help = 1;
     }
   
   // Print usage and exit if necessary
   if (print_help)
     {
-      cerr << "Usage:  " << argv[0] << " [options] < in.cutcounts.bed > out.pvalues.bed\n"
+      std::cerr << "Usage:  " << argv[0] << " [options] < in.cutcounts.bed > out.pvalues.bed\n"
            << "\n"
            << "Options: \n"
            << "  -b, --background_size=SIZE     The size of the background region (50001)\n"
@@ -1867,25 +1866,25 @@ int main(int argc, char* argv[])
            << " output (sent to stdout) will be a .bed5 file with FDR in field 5\n"
            << "\tor, if --write_pvals is specified, a .bed6 file with P-values appended in field 6\n"
            << " input (received from stdin) requires IDs in field 4 and counts in field 5.\n"
-           << endl
-           << endl;
+           << std::endl
+           << std::endl;
       return -1;
     }
 
   if (print_version)
     {
-      cout << argv[0] << " version " << hotspot2_VERSION_MAJOR
-           << '.' << hotspot2_VERSION_MINOR << endl;
+      std::cout << argv[0] << " version " << hotspot2_VERSION_MAJOR
+           << '.' << hotspot2_VERSION_MINOR << std::endl;
       return 0;
     }
 
-  ios_base::sync_with_stdio(false); // calling this static method in this way turns off checks, speeds up I/O
+  std::ios_base::sync_with_stdio(false); // calling this static method in this way turns off checks, speeds up I/O
 
   if (!infilename.empty() && infilename != "-")
     {
       if (freopen(infilename.c_str(), "r", stdin) == NULL)
         {
-          cerr << "Error: Couldn't open input file " << infilename << endl;
+          std::cerr << "Error: Couldn't open input file " << infilename << std::endl;
           return 1;
         }
     }
@@ -1893,25 +1892,25 @@ int main(int argc, char* argv[])
     {
       if (freopen(outfilename.c_str(), "w", stdout) == NULL)
         {
-          cerr << "Error: Couldn't open output file " << outfilename << " for writing" << endl;
+          std::cerr << "Error: Couldn't open output file " << outfilename << " for writing" << std::endl;
           return 1;
         }
     }
 
-  ofstream ofsIntToChrnameMapping(outfilenameChromNames.c_str());
+  std::ofstream ofsIntToChrnameMapping(outfilenameChromNames.c_str());
   if (!ofsIntToChrnameMapping)
     {
-      cerr << "Error:  Unable to open file \"" << outfilenameChromNames << "\" for write."
-	   << endl
-	   << endl;
+      std::cerr << "Error:  Unable to open file \"" << outfilenameChromNames << "\" for write."
+	   << std::endl
+	   << std::endl;
       return -1;
     }
-  ofstream ofsPvals(outfilenamePvals.c_str());
+  std::ofstream ofsPvals(outfilenamePvals.c_str());
   if (!ofsPvals)
     {
-      cerr << "Error:  Unable to open file \"" << outfilenamePvals << "\" for write."
-	   << endl
-	   << endl;
+      std::cerr << "Error:  Unable to open file \"" << outfilenamePvals << "\" for write."
+	   << std::endl
+	   << std::endl;
       return -1;
     }
   
@@ -1919,7 +1918,7 @@ int main(int argc, char* argv[])
 			    write_pvals ? true : false, ofsPvals))
     return -1;
 
-  for (map<string*, int>::const_iterator it = chromAsInt.begin(); it != chromAsInt.end(); it++)
+  for (std::map<std::string*, int>::const_iterator it = chromAsInt.begin(); it != chromAsInt.end(); it++)
     ofsIntToChrnameMapping << it->second << '\t' << *(it->first) << '\n';
   
   return 0;
