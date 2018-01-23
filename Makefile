@@ -1,7 +1,7 @@
 BINDIR = bin
 SRCDIR = src
 CXX = g++
-CXXFLAGS = -O3 -pedantic -Wall -ansi -static
+CXXFLAGS = -O2 -march=native -mtune=native -funroll-loops -DNDEBUG -static
 
 TARGETS = hotspot2_part1 hotspot2_part2
 EXE = $(addprefix $(BINDIR)/,$(TARGETS))
