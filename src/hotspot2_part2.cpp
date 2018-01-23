@@ -47,7 +47,7 @@ bool OutputOrder_LT(const SiteRangeData& a, const SiteRangeData& b) {
     return a.chromID < b.chromID;
 }
 
-bool buildFDRmapping(std::ifstream& ifs, std::vector<std::pair<int, long double> >& p_to_q) {
+bool buildFDRmapping(std::ifstream& ifs, std::vector<std::pair<int, long double>>& p_to_q) {
     const int BUFSIZE(100);
     char buf[BUFSIZE], *p;
     long numPvalues(0);
@@ -169,7 +169,7 @@ MissingField:
 }
 
 bool parseAndProcessInput(const std::map<int, std::string*>& intToChromNameMap,
-                          const std::vector<std::pair<int, long double> >& PvalToFDRmapping,
+                          const std::vector<std::pair<int, long double>>& PvalToFDRmapping,
                           const int& N, const long double& FDRthreshold, const bool& writePvals) {
     const int BUFSIZE(1000);
     char buf[BUFSIZE], *p;
@@ -239,7 +239,7 @@ MissingField:
     }
 
     it = vec.begin();
-    for (std::vector<std::pair<int, long double> >::const_iterator itPtoQ = PvalToFDRmapping.begin();
+    for (std::vector<std::pair<int, long double>>::const_iterator itPtoQ = PvalToFDRmapping.begin();
             itPtoQ != PvalToFDRmapping.end(); itPtoQ++) {
         while (it != vec.end() && it->negLog10P_scaled == itPtoQ->first) {
             it->FDR = itPtoQ->second;
@@ -414,7 +414,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    std::vector<std::pair<int, long double> > PvalToFDRmapping;
+    std::vector<std::pair<int, long double>> PvalToFDRmapping;
     if (!buildFDRmapping(ifsPvals, PvalToFDRmapping)) {
         return -1;
     }
