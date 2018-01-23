@@ -26,7 +26,7 @@
 #include <utility> // for pair
 #include <vector>
 
-const long double CHANGE_OF_SCALE(1000.);
+const long double CHANGE_OF_SCALE(10000.);
 
 struct SiteRangeData {
   int negLog10P_scaled;
@@ -118,7 +118,7 @@ bool buildFDRmapping(std::ifstream& ifs, std::vector<std::pair<int, long double>
     {
       p_to_q[i].first = it->first;
       numThisExtremeOrMoreExtreme += static_cast<long double>(it->second);
-      FDR = static_cast<long double>(pow(10., -it->first/CHANGE_OF_SCALE)) * N / numThisExtremeOrMoreExtreme;
+      FDR = static_cast<long double>(std::pow(10., -it->first/CHANGE_OF_SCALE)) * N / numThisExtremeOrMoreExtreme;
       if (FDR < prevFDR)
 	FDR = prevFDR;
       if (FDR > 0.999)
@@ -291,7 +291,7 @@ bool parseAndProcessInput(const std::map<int, std::string*>& intToChromNameMap, 
 	       << it->begPos + it->width << "\ti\t"
 	       << it->FDR;
 	  if (writePvals)
-	    std::cout << '\t' << pow(10., -it->negLog10P_scaled/CHANGE_OF_SCALE);
+	    std::cout << '\t' << std::pow(10., -it->negLog10P_scaled/CHANGE_OF_SCALE);
 	  std::cout << '\n';
 	}
     }

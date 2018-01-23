@@ -116,8 +116,10 @@ long double nextProbBinomial(const int& k, const long double& prevVal, const std
       exit(1);
     }
   const long double &m(params[0]), &v(params[1]), &nn(params[2]), kk(static_cast<long double>(k));
+
   if (kk > nn + 0.5) // really "if kk > nn," but we could have "kk == nn" with nn=15.99999 and kk=16.000001, hence the 0.5
     return 0.;
+
   if (v < 1.0e-8)
     {
       std::cerr << "Error:  nextProbBinomial() received v = 0, which is invalid (require variance > 0)."
@@ -201,7 +203,9 @@ void SiteManager::processPvalue(const long double& pval
   if (pval < 0 || pval > 1)
     negLog10P_scaled = 0;
   else
-    negLog10P_scaled = static_cast<int>(floor(-log10(pval) * CHANGE_OF_SCALE + 0.5));
+    negLog10P_scaled = static_cast<int>(std::floor(-log10(pval) * CHANGE_OF_SCALE + 0.5));
+
+  
   std::deque<SiteRange>::iterator itCurSiteNeedingPval(m_sites.begin());
   while (itCurSiteNeedingPval != m_sites.end() && itCurSiteNeedingPval->hasPval)
     itCurSiteNeedingPval++;
@@ -647,7 +651,7 @@ void BackgroundRegionManager::computeStats(const int& this_k)
   if (0 == m_runningSum_count || 1 == m_runningSum_count) // the only way for count data to have m = v
     {
       // Poisson, m = v
-      prob0 = exp(-m);
+      prob0 = std::exp(-m);
       m_pmfParams.push_back(m);
       m_pmf = &nextProbPoisson;
       if (!warningAlreadyIssued)
@@ -669,13 +673,13 @@ void BackgroundRegionManager::computeStats(const int& this_k)
           long double r = m * m / (v - m);
           m_pmfParams.push_back(m);
           m_pmfParams.push_back(r);
-          prob0 = pow(r / (r + m), r);
+          prob0 = std::pow(r / (r + m), r);
           m_pmf = &nextProbNegativeBinomial;
         }
       else // m > v (this is very unlikely)
         {
           // binomial
-          long double n(floor(m * m / (m - v) + 0.5)); // estimate n of the fit from the observed mean and variance
+          long double n(std::floor(m * m / (m - v) + 0.5)); // estimate n of the fit from the observed mean and variance
           long double kk_max(static_cast<long double>(m_kcutoff)); // BUGBUG if m_kcutoff has 0 observations, do we still want to use it here??!?
           if (kk_max > n + 0.1) // + 0.1 to account for roundoff error, e.g. k=16.00001 and n=15.99999
             {
@@ -686,7 +690,7 @@ void BackgroundRegionManager::computeStats(const int& this_k)
           // Now that we've set n, there's inconsistency among n, m, and v, with respect to the binomial.
           // We choose to keep m as observed, and update the variance parameter v so that consistency is achieved.
           v = m * (1. - m / n); // Now m*m/(m-v) = the integer n. Example: m=1.8952, v=1.6747, n=16.2893-->16, v-->1.6701.
-          prob0 = pow(v / m, n);
+          prob0 = std::pow(v / m, n);
           m_pmfParams.push_back(m);
           m_pmfParams.push_back(v);
           m_pmfParams.push_back(n);
